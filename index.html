@@ -1,0 +1,2871 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Heracles' Academy — Fantasy Incremental</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --gold: #f0c060;
+    --gold-dark: #a07820;
+    --gold-glow: #f0c06055;
+    --bg: #0a0608;
+    --bg2: #110c10;
+    --bg3: #1a1018;
+    --panel: #160e14;
+    --border: #3a2535;
+    --mana: #8060d0;
+    --mana-light: #b090ff;
+    --mana-glow: #8060d040;
+    --text: #e8d8c0;
+    --text-dim: #806050;
+    --red: #c04040;
+    --green: #40a060;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Crimson Pro', serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+    background-image: 
+      radial-gradient(ellipse at 20% 20%, #200a2a 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 80%, #0a1520 0%, transparent 50%);
+  }
+
+  /* Particle canvas */
+  #particles { position: fixed; inset: 0; pointer-events: none; z-index: 0; opacity: 0.4; }
+
+  .game-wrapper {
+    position: relative; z-index: 1;
+    max-width: 1100px; margin: 0 auto; padding: 16px;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+    min-height: 100vh;
+  }
+
+  /* Header */
+  header {
+    text-align: center;
+    padding: 16px 0 8px;
+  }
+  header h1 {
+    font-family: 'Cinzel Decorative', cursive;
+    font-size: clamp(1.4rem, 4vw, 2.4rem);
+    color: var(--gold);
+    text-shadow: 0 0 30px var(--gold-glow), 0 0 60px var(--gold-glow);
+    letter-spacing: 0.1em;
+  }
+  header p { color: var(--text-dim); font-style: italic; font-size: 0.95rem; margin-top: 4px; }
+
+  /* Resources bar */
+  .resources {
+    grid-column: 1 / -1;
+    display: flex; gap: 12px; flex-wrap: wrap;
+  }
+  .res-box {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 16px;
+    display: flex; align-items: center; gap: 10px;
+    flex: 1; min-width: 140px;
+  }
+  .res-icon { font-size: 1.4rem; }
+  .res-info .res-name { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-dim); }
+  .res-info .res-val { font-family: 'Cinzel Decorative', cursive; font-size: 1.1rem; color: var(--gold); }
+  .res-info .res-rate { font-size: 0.75rem; color: var(--mana-light); }
+
+  /* Main click area */
+  .main-area { display: flex; flex-direction: column; gap: 14px; max-width: 680px; margin: 0 auto; width: 100%; }
+
+  .orb-panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px;
+    display: flex; flex-direction: column; align-items: center; gap: 20px;
+    position: relative; overflow: hidden;
+  }
+  .orb-panel::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at 50% 0%, #0a2810 0%, transparent 60%);
+    pointer-events: none;
+  }
+
+  .orb-container { position: relative; }
+  #mainOrb {
+    width: 160px; height: 160px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 40% 35%, #0d2818, #050c08);
+    box-shadow: 0 0 40px #20a06050, 0 0 80px #10603030, inset 0 0 30px #00000040;
+    cursor: pointer;
+    border: 2px solid #30a06050;
+    transition: transform 0.08s, box-shadow 0.08s;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 4rem;
+    user-select: none;
+    -webkit-user-select: none;
+    overflow: hidden;
+  }
+  #mainOrb > svg { pointer-events: none; display: block; }
+  #mainOrb:hover {
+    box-shadow: 0 0 60px #30c07080, 0 0 100px #10603050, inset 0 0 30px #00000040;
+  }
+  #mainOrb:active { transform: scale(0.93); }
+  #mainOrb.clicked { animation: orbPulse 0.15s ease-out; }
+  @keyframes orbPulse {
+    0% { transform: scale(1); }
+    40% { transform: scale(0.9); box-shadow: 0 0 80px #40ffb080, inset 0 0 40px #20806040; }
+    100% { transform: scale(1); }
+  }
+
+  .orb-label {
+    font-family: 'Cinzel Decorative', cursive;
+    font-size: 0.85rem; color: var(--gold);
+    text-align: center; letter-spacing: 0.1em;
+  }
+  .orb-sub { color: var(--text-dim); font-size: 0.85rem; font-style: italic; }
+
+  /* Float text */
+  .float-text {
+    position: fixed;
+    font-family: 'Cinzel Decorative', cursive;
+    font-size: 1rem;
+    color: var(--mana-light);
+    pointer-events: none;
+    animation: floatUp 1s ease-out forwards;
+    text-shadow: 0 0 10px var(--mana-glow);
+    z-index: 9999;
+  }
+  @keyframes floatUp {
+    0% { opacity: 1; transform: translateY(0) scale(1); }
+    100% { opacity: 0; transform: translateY(-70px) scale(0.8); }
+  }
+
+  /* Upgrades / Spells panel */
+  .spells-panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 16px;
+  }
+  .panel-title {
+    font-family: 'Cinzel Decorative', cursive;
+    font-size: 0.8rem; color: var(--gold);
+    letter-spacing: 0.12em; text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 10px; margin-bottom: 12px;
+    display: flex; align-items: center; gap: 8px;
+  }
+
+  .spell-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .spell-btn {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 8px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s;
+    color: var(--text);
+    font-family: 'Crimson Pro', serif;
+    position: relative; overflow: hidden;
+  }
+  .spell-btn:hover:not(:disabled) {
+    border-color: var(--mana);
+    background: #20102e;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px var(--mana-glow);
+  }
+  .spell-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .spell-btn .s-icon { font-size: 1.5rem; display: block; }
+  .spell-btn .s-name { font-size: 0.78rem; font-weight: 600; display: block; margin-top: 2px; }
+  .spell-btn .s-cost { font-size: 0.7rem; color: var(--gold); display: block; }
+  .spell-btn .s-desc { font-size: 0.65rem; color: var(--text-dim); font-style: italic; margin-top: 2px; display: block; }
+  .spell-btn .s-level { 
+    position: absolute; top: 4px; right: 6px; 
+    font-size: 0.65rem; color: var(--mana-light);
+    font-family: 'Cinzel Decorative', cursive;
+  }
+
+  /* Right sidebar */
+  .sidebar { display: flex; flex-direction: column; gap: 14px; }
+
+  /* Familiars / idle generators */
+  .familiars-panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 16px;
+    flex: 1;
+  }
+  .familiar-item {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    display: flex; align-items: center; gap: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+  }
+  .familiar-item:hover:not(.locked) {
+    border-color: var(--gold-dark);
+    background: #1c1208;
+    box-shadow: 0 2px 12px var(--gold-glow);
+  }
+  .familiar-item.locked { opacity: 0.35; cursor: not-allowed; }
+  .fam-icon { font-size: 1.6rem; min-width: 36px; text-align: center; }
+  .fam-info { flex: 1; }
+  .fam-name { font-size: 0.82rem; font-weight: 600; }
+  .fam-desc { font-size: 0.68rem; color: var(--text-dim); font-style: italic; }
+  .fam-level-badge {
+    display: inline-block; font-size: 0.58rem;
+    background: #1a3020; border: 1px solid #306040;
+    border-radius: 5px; padding: 1px 5px;
+    color: #60c080; font-family: 'Crimson Pro', serif;
+    vertical-align: middle; margin-left: 4px;
+  }
+  .fam-action {
+    font-size: 0.65rem; font-family: 'Cinzel Decorative', cursive;
+    color: var(--text-dim); text-align: center;
+    min-width: 56px; flex-shrink: 0;
+    padding: 4px 6px; border-radius: 7px;
+    border: 1px solid var(--border);
+    background: var(--bg3);
+  }
+  .fam-action.fam-can-afford {
+    color: #60c080; border-color: #306040; background: #0e1a12;
+  }
+  .fam-action.fam-max {
+    color: var(--gold); border-color: var(--gold-dark); background: #1a1408;
+  } 
+    font-family: 'Cinzel Decorative', cursive; 
+    font-size: 1rem; color: var(--gold); min-width: 24px; text-align: right;
+  }
+  .fam-cost { font-size: 0.7rem; color: var(--mana-light); }
+
+  /* Prestige */
+  .prestige-panel {
+    background: var(--panel);
+    border: 1px solid #503020;
+    border-radius: 16px;
+    padding: 14px;
+    text-align: center;
+  }
+  .prestige-btn {
+    background: linear-gradient(135deg, #402010, #603020);
+    border: 1px solid #a06030;
+    border-radius: 10px;
+    color: var(--gold);
+    font-family: 'Cinzel Decorative', cursive;
+    font-size: 0.75rem;
+    padding: 10px 16px;
+    cursor: pointer;
+    width: 100%;
+    transition: all 0.2s;
+    letter-spacing: 0.05em;
+  }
+  .prestige-btn:hover:not(:disabled) {
+    background: linear-gradient(135deg, #603020, #904020);
+    box-shadow: 0 0 20px #a0602040;
+    transform: translateY(-1px);
+  }
+  .prestige-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .prestige-info { font-size: 0.72rem; color: var(--text-dim); margin-top: 6px; font-style: italic; }
+
+  /* Log */
+  .log-panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 14px;
+  }
+  #log { font-size: 0.75rem; color: var(--text-dim); font-style: italic; }
+  #log p { margin-bottom: 3px; }
+  #log p.new { color: var(--mana-light); animation: fadeLog 3s forwards; }
+  @keyframes fadeLog { 0%,50% { opacity: 1; } 100% { opacity: 0.5; } }
+
+  /* Mana bar */
+  .mana-bar-wrap { width: 100%; background: #1a0820; border-radius: 6px; height: 8px; overflow: hidden; }
+  .mana-bar-fill { height: 100%; background: linear-gradient(90deg, var(--mana), var(--mana-light)); border-radius: 6px; transition: width 0.3s; }
+
+  /* Scrolls (achievements) */
+  .achievement-toast {
+    position: fixed; bottom: 20px; right: 20px;
+    background: #201028;
+    border: 1px solid var(--gold);
+    border-radius: 12px;
+    padding: 12px 18px;
+    font-size: 0.85rem;
+    color: var(--gold);
+    z-index: 9999;
+    animation: toastIn 0.3s ease-out, toastOut 0.3s ease-in 2.7s forwards;
+    box-shadow: 0 0 30px var(--gold-glow);
+    max-width: 280px;
+  }
+  @keyframes toastIn { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+  @keyframes toastOut { from { opacity: 1; } to { opacity: 0; transform: translateX(120%); } }
+
+  /* Familiar tier tabs */
+  .tier-tabs {
+    display: flex; gap: 4px; margin-bottom: 10px;
+  }
+  .tier-tab {
+    flex: 1; background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 8px; padding: 6px 4px; cursor: pointer;
+    font-family: 'Cinzel Decorative', cursive; font-size: 0.6rem;
+    color: var(--text-dim); text-align: center; transition: all 0.2s;
+    letter-spacing: 0.04em;
+  }
+  .tier-tab:hover { border-color: var(--gold-dark); color: var(--text); }
+  .tier-tab.active {
+    background: linear-gradient(135deg, #1e1008, #2e1a08);
+    border-color: var(--gold-dark);
+    color: var(--gold);
+    box-shadow: 0 2px 10px var(--gold-glow);
+  }
+  .tier-tab .tab-icon { display: block; font-size: 1rem; margin-bottom: 2px; }
+
+  .familiar-item.prestige-locked {
+    opacity: 0.45; cursor: not-allowed;
+    border-color: #4a2020;
+    background: #120808;
+  }
+  .fam-prestige-badge {
+    font-size: 0.65rem; color: #c07040;
+    font-family: 'Cinzel Decorative', cursive;
+    white-space: nowrap; text-align: right;
+    line-height: 1.4;
+  }
+  .tier-tab.tier-locked { opacity: 0.5; filter: grayscale(0.5); }
+  .tier-tab.tier-locked .tab-icon::after { content: ' 🔒'; font-size: 0.7rem; }
+
+  /* ===== AD POWER-UP ===== */
+  .adboost-panel {
+    background: var(--panel);
+    border: 1px solid #2a3a20;
+    border-radius: 16px;
+    padding: 16px 20px;
+    position: relative; overflow: hidden;
+  }
+  .adboost-panel::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at 50% 100%, #0a2010 0%, transparent 60%);
+    pointer-events: none;
+  }
+  .adboost-row {
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  }
+  .adboost-icon-wrap {
+    position: relative; width: 56px; height: 56px; flex-shrink: 0;
+  }
+  .adboost-icon-wrap svg { position: absolute; inset: 0; transform: rotate(-90deg); }
+  .adboost-ring-bg  { stroke: #1a2e14; fill: none; stroke-width: 4; }
+  .adboost-ring-fill {
+    fill: none; stroke-width: 4; stroke-linecap: round;
+    stroke: #50d070;
+    stroke-dasharray: 150.8; stroke-dashoffset: 150.8;
+    transition: stroke-dashoffset 0.5s linear, stroke 0.3s;
+  }
+  .adboost-ring-fill.active { stroke: #80ff90; filter: drop-shadow(0 0 3px #40ff6080); }
+  .adboost-center-icon {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.5rem;
+  }
+  .adboost-info { flex: 1; min-width: 140px; }
+  .adboost-title {
+    font-family: 'Cinzel Decorative', cursive;
+    font-size: 0.75rem; color: #80d090; letter-spacing: 0.05em;
+  }
+  .adboost-status { font-size: 0.72rem; color: var(--text-dim); margin-top: 2px; }
+  .adboost-stack  { font-size: 0.68rem; color: #60c070; margin-top: 2px; }
+
+  /* Stack pips */
+  .adboost-pips {
+    display: flex; gap: 3px; flex-wrap: wrap; margin-top: 6px; max-width: 260px;
+  }
+  .adboost-pip {
+    width: 12px; height: 12px; border-radius: 3px;
+    background: #1a2e14; border: 1px solid #304a20;
+    transition: all 0.3s;
+  }
+  .adboost-pip.filled {
+    background: #40c060;
+    border-color: #60e080;
+    box-shadow: 0 0 4px #40c06060;
+  }
+  .adboost-pip.active-pip {
+    background: #80ff90;
+    border-color: #a0ffa0;
+    box-shadow: 0 0 8px #80ff9080;
+    animation: pipPulse 1.5s ease-in-out infinite;
+  }
+  @keyframes pipPulse {
+    0%,100% { box-shadow: 0 0 4px #80ff9060; }
+    50%      { box-shadow: 0 0 12px #80ff90b0; }
+  }
+
+  .adboost-btn {
+    background: linear-gradient(135deg, #0e2810, #1a4020);
+    border: 1px solid #40a050;
+    border-radius: 10px;
+    color: #80e090;
+    font-family: 'Cinzel Decorative', cursive;
+    font-size: 0.65rem;
+    padding: 10px 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .adboost-btn:hover:not(:disabled) {
+    background: linear-gradient(135deg, #142e14, #204a24);
+    box-shadow: 0 0 16px #40a05040;
+    transform: translateY(-1px);
+  }
+  .adboost-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .adboost-btn.maxed {
+    border-color: #306030; color: #406040; cursor: not-allowed;
+  }
+
+  /* Active boost indicator in resource bar */
+  .res-box.boosted { border-color: #40a050; box-shadow: 0 0 12px #20603030; }
+  .res-boost-badge {
+    font-size: 0.6rem; color: #60d070;
+    font-family: 'Cinzel Decorative', cursive;
+    white-space: nowrap;
+  }
+
+  /* Boost float text */
+  .float-text.boost { color: #80ff90; font-size: 1.1rem; }
+
+  /* Ad modal overlay */
+  .ad-modal-overlay {
+    position: fixed; inset: 0;
+    background: #000000cc;
+    z-index: 9000;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .ad-modal {
+    background: #0e1a10;
+    border: 2px solid #40a050;
+    border-radius: 20px;
+    padding: 32px 28px;
+    text-align: center;
+    max-width: 340px; width: 90%;
+    box-shadow: 0 0 60px #20803040;
+    position: relative;
+  }
+  .ad-modal-title {
+    font-family: 'Cinzel Decorative', cursive;
+    font-size: 1rem; color: #80e090;
+    margin-bottom: 8px;
+  }
+  .ad-modal-sub { font-size: 0.82rem; color: var(--text-dim); font-style: italic; margin-bottom: 20px; }
+  .ad-progress-wrap {
+    background: #1a2e14; border-radius: 8px; height: 12px;
+    overflow: hidden; margin-bottom: 12px;
+  }
+  .ad-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #40c060, #80ff90);
+    border-radius: 8px;
+    transition: width 0.1s linear;
+  }
+  .ad-timer { font-family: 'Cinzel Decorative', cursive; font-size: 1.3rem; color: #80e090; margin-bottom: 4px; }
+  .ad-skip-hint { font-size: 0.7rem; color: var(--text-dim); }
+  .ad-close-btn {
+    background: linear-gradient(135deg, #1a3a1a, #2a5a2a);
+    border: 1px solid #50b060;
+    border-radius: 10px;
+    color: #80e090;
+    font-family: 'Cinzel Decorative', cursive;
+    font-size: 0.72rem;
+    padding: 10px 24px;
+    cursor: pointer;
+    margin-top: 12px;
+    display: none;
+    transition: all 0.2s;
+  }
+  .ad-close-btn:hover { box-shadow: 0 0 16px #40a05060; transform: translateY(-1px); }
+  .ad-close-btn.visible { display: inline-block; }
+
+  .auto-upg-btn.purchased {
+    border-color: #306040; background: #0a1810; opacity: 0.6; cursor: default;
+  }
+  .auto-upg-btn.upgrade-locked {
+    opacity: 0.35; cursor: not-allowed;
+  }
+  .autoclicker-panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 16px 20px;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .auto-row {
+    display: flex; align-items: center; gap: 14px;
+  }
+  .orb-ring-wrap {
+    position: relative; width: 56px; height: 56px; flex-shrink: 0;
+  }
+  .orb-ring-wrap svg { position: absolute; inset: 0; transform: rotate(-90deg); }
+  .orb-ring-bg { stroke: #2a1a38; fill: none; stroke-width: 4; }
+  .orb-ring-fill { fill: none; stroke-width: 4; stroke-linecap: round;
+    stroke: var(--mana-light);
+    stroke-dasharray: 150.8;
+    stroke-dashoffset: 0;
+    transition: stroke-dashoffset 0.05s linear, stroke 0.3s;
+  }
+  .orb-ring-fill.ready { stroke: var(--gold); filter: drop-shadow(0 0 4px var(--gold)); }
+  .orb-ring-icon {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.4rem;
+  }
+
+  .auto-info { flex: 1; }
+  .auto-title { font-family: 'Cinzel Decorative', cursive; font-size: 0.78rem; color: var(--gold); }
+  .auto-status { font-size: 0.72rem; color: var(--text-dim); margin-top: 2px; }
+  .auto-speed { font-size: 0.72rem; color: var(--mana-light); }
+
+  .auto-toggle {
+    background: #1a0828;
+    border: 1px solid var(--mana);
+    border-radius: 20px;
+    color: var(--mana-light);
+    font-family: 'Cinzel Decorative', cursive;
+    font-size: 0.65rem;
+    padding: 6px 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+  }
+  .auto-toggle:hover { background: #2a1040; box-shadow: 0 0 12px var(--mana-glow); }
+  .auto-toggle.active {
+    background: linear-gradient(135deg, #3a1060, #6030a0);
+    border-color: var(--mana-light);
+    color: #fff;
+    box-shadow: 0 0 16px var(--mana-glow);
+  }
+
+  .auto-upgrades { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+  .auto-upg-btn {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 7px 6px;
+    cursor: pointer;
+    text-align: center;
+    color: var(--text);
+    font-family: 'Crimson Pro', serif;
+    transition: all 0.2s;
+    position: relative;
+  }
+  .auto-upg-btn:hover:not(:disabled) {
+    border-color: var(--mana); background: #20102e;
+    box-shadow: 0 2px 10px var(--mana-glow);
+  }
+  .auto-upg-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .auto-upg-btn .au-icon { font-size: 1.1rem; display: block; }
+  .auto-upg-btn .au-name { font-size: 0.65rem; font-weight: 600; display: block; margin-top: 2px; line-height: 1.2; }
+  .auto-upg-btn .au-cost { font-size: 0.62rem; color: var(--gold); display: block; }
+  .auto-upg-btn .au-val  { font-size: 0.6rem; color: var(--mana-light); display: block; }
+  .auto-upg-btn .au-lv { position: absolute; top: 3px; right: 5px; font-size: 0.58rem; color: var(--text-dim); }
+
+  /* ===== BATTLE ARENA ===== */
+  .battle-panel {
+    background: var(--panel);
+    border: 1px solid #502020;
+    border-radius: 16px;
+    padding: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+  .battle-panel::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at 50% 100%, #3a100820 0%, transparent 60%);
+    pointer-events: none;
+  }
+  .battle-tabs {
+    display: flex; gap: 4px; margin-bottom: 12px;
+    overflow-x: auto; padding-bottom: 4px;
+    scrollbar-width: thin; scrollbar-color: #503020 transparent;
+  }
+  .battle-tab {
+    flex-shrink: 0; min-width: 80px;
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 8px; padding: 5px 6px; cursor: pointer;
+    font-family: 'Cinzel Decorative', cursive; font-size: 0.58rem;
+    color: var(--text-dim); text-align: center; transition: all 0.2s;
+    letter-spacing: 0.04em;
+  }
+  .battle-tab:hover { border-color: #a04030; color: var(--text); }
+  .battle-tab.active {
+    background: linear-gradient(135deg, #300808, #501010);
+    border-color: #a04030;
+    color: #e08060;
+    box-shadow: 0 2px 10px #80201020;
+  }
+  .battle-tab.locked-tab { opacity: 0.4; cursor: not-allowed; }
+  .battle-tab .btab-icon { display: block; font-size: 1rem; margin-bottom: 1px; }
+
+  .battle-tab.prestige-zone {
+    border-color: #4a2060;
+    color: #a080c0;
+  }
+  .battle-tab.prestige-zone.active {
+    background: linear-gradient(135deg, #180828, #280840);
+    border-color: #8060a0;
+    color: #c0a0e0;
+    box-shadow: 0 2px 10px #40208030;
+  }
+  .titan-card {
+    background: linear-gradient(135deg, #1a0808, #2a1010);
+    border: 1px solid #603020;
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 12px;
+  }
+  .titan-header {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 10px;
+  }
+  .titan-icon {
+    font-size: 2.8rem;
+    filter: drop-shadow(0 0 8px #ff604040);
+    min-width: 50px; text-align: center;
+  }
+  .titan-icon.shaking { animation: titanShake 0.4s ease-in-out; }
+  @keyframes titanShake {
+    0%,100% { transform: translateX(0) rotate(0deg); }
+    20% { transform: translateX(-6px) rotate(-3deg); }
+    40% { transform: translateX(6px) rotate(3deg); }
+    60% { transform: translateX(-4px) rotate(-2deg); }
+    80% { transform: translateX(4px) rotate(2deg); }
+  }
+  .titan-details { flex: 1; }
+  .titan-name {
+    font-family: 'Cinzel Decorative', cursive;
+    font-size: 0.9rem; color: #e08060;
+    text-shadow: 0 0 12px #ff402040;
+  }
+  .titan-lore { font-size: 0.72rem; color: var(--text-dim); font-style: italic; margin-top: 2px; }
+  .titan-reward { font-size: 0.7rem; color: var(--gold); margin-top: 3px; }
+
+  /* HP bars */
+  .hp-bars { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+  .hp-row { display: flex; align-items: center; gap: 8px; }
+  .hp-label { font-size: 0.68rem; color: var(--text-dim); min-width: 52px; text-align: right; }
+  .hp-bar-wrap { flex: 1; background: #1a0808; border-radius: 4px; height: 10px; overflow: hidden; }
+  .hp-bar-fill {
+    height: 100%; border-radius: 4px;
+    transition: width 0.3s ease-out;
+  }
+  .hp-bar-fill.titan-hp { background: linear-gradient(90deg, #c03020, #e06040); }
+  .hp-bar-fill.party-hp { background: linear-gradient(90deg, #208040, #40c060); }
+  .hp-val { font-size: 0.65rem; color: var(--text-dim); min-width: 70px; }
+
+  /* Battle log */
+  .battle-log {
+    background: #0e0808;
+    border: 1px solid #3a1a1a;
+    border-radius: 8px;
+    padding: 8px 10px;
+    height: 72px;
+    overflow-y: auto;
+    margin-bottom: 10px;
+    font-size: 0.72rem;
+    font-style: italic;
+    color: var(--text-dim);
+  }
+  .battle-log p { margin-bottom: 2px; }
+  .battle-log p.hit-player { color: #e08060; }
+  .battle-log p.hit-titan  { color: #60c080; }
+  .battle-log p.battle-end { color: var(--gold); font-style: normal; font-weight: 600; }
+
+  /* Party selector */
+  .party-section { margin-bottom: 10px; }
+  .party-label {
+    font-family: 'Cinzel Decorative', cursive;
+    font-size: 0.68rem; color: var(--gold);
+    margin-bottom: 6px; display: block;
+  }
+  .party-slots {
+    display: flex; gap: 6px; flex-wrap: wrap;
+  }
+  .party-slot {
+    width: 44px; height: 44px;
+    background: #1a0818;
+    border: 1px dashed #3a2535;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.3rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+  }
+  .party-slot.filled {
+    border-color: var(--mana);
+    background: #20103a;
+    box-shadow: 0 0 8px var(--mana-glow);
+  }
+  .party-slot.filled:hover { border-color: var(--red); background: #2a0818; }
+  .party-slot .slot-count {
+    position: absolute; bottom: 1px; right: 3px;
+    font-size: 0.5rem; color: var(--mana-light);
+    font-family: 'Cinzel Decorative', cursive;
+  }
+
+  .available-familiars {
+    display: flex; gap: 5px; flex-wrap: wrap; margin-top: 6px;
+  }
+  .avail-fam {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 7px;
+    font-size: 0.68rem;
+    cursor: pointer;
+    display: flex; align-items: center; gap: 4px;
+    transition: all 0.15s;
+    color: var(--text);
+  }
+  .avail-fam:hover { border-color: var(--mana); background: #20102e; }
+  .avail-fam.in-party { border-color: var(--gold-dark); background: #1e1008; color: var(--gold); }
+  .avail-fam .af-count { color: var(--text-dim); font-size: 0.6rem; }
+
+  /* Battle controls */
+  .battle-controls { display: flex; gap: 8px; }
+  .battle-btn {
+    flex: 1;
+    background: linear-gradient(135deg, #3a1010, #601818);
+    border: 1px solid #a03020;
+    border-radius: 10px;
+    color: #e08060;
+    font-family: 'Cinzel Decorative', cursive;
+    font-size: 0.68rem;
+    padding: 10px 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.05em;
+  }
+  .battle-btn:hover:not(:disabled) {
+    background: linear-gradient(135deg, #501818, #802020);
+    box-shadow: 0 0 16px #80201040;
+    transform: translateY(-1px);
+  }
+  .battle-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .battle-btn.fighting {
+    background: linear-gradient(135deg, #601818, #903020);
+    border-color: #d05030;
+    animation: btnPulse 1.5s ease-in-out infinite;
+  }
+  @keyframes btnPulse {
+    0%,100% { box-shadow: 0 0 10px #80201040; }
+    50%      { box-shadow: 0 0 24px #c04020a0; }
+  }
+  .battle-btn.retreat {
+    background: linear-gradient(135deg, #181818, #302020);
+    border-color: #604040;
+    color: var(--text-dim);
+    flex: 0 0 auto; padding: 10px 14px;
+  }
+
+  .battle-victory {
+    text-align: center; padding: 12px;
+    animation: victoryGlow 0.5s ease-out;
+  }
+  @keyframes victoryGlow {
+    0% { opacity: 0; transform: scale(0.9); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+  .victory-title {
+    font-family: 'Cinzel Decorative', cursive;
+    font-size: 1rem; color: var(--gold);
+    text-shadow: 0 0 20px var(--gold-glow);
+    margin-bottom: 4px;
+  }
+  .battle-locked-msg {
+    text-align: center; padding: 20px 8px; color: var(--text-dim); font-style: italic;
+  }
+
+  /* ===== MAIN NAV TABS ===== */
+  .main-nav {
+    grid-column: 1 / -1;
+    display: flex; gap: 6px;
+  }
+  .main-nav-tab {
+    flex: 1;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 8px;
+    cursor: pointer;
+    font-family: 'Cinzel Decorative', cursive;
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    text-align: center;
+    transition: all 0.2s;
+    letter-spacing: 0.06em;
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+  }
+  .main-nav-tab .nav-icon { font-size: 1.3rem; }
+  .main-nav-tab:hover { border-color: var(--gold-dark); color: var(--text); }
+  .main-nav-tab.tab-locked {
+    opacity: 0.5; filter: grayscale(0.5);
+  }
+    background: linear-gradient(135deg, #1e1008, #2e1808);
+    border-color: var(--gold-dark);
+    color: var(--gold);
+    box-shadow: 0 2px 12px var(--gold-glow);
+  }
+  .main-nav-tab.active.battle-nav {
+    background: linear-gradient(135deg, #1e0808, #2e1010);
+    border-color: #a04030;
+    color: #e08060;
+    box-shadow: 0 2px 12px #80201030;
+  }
+  .main-nav-tab.active.familiar-nav {
+    background: linear-gradient(135deg, #081820, #102030);
+    border-color: var(--mana);
+    color: var(--mana-light);
+    box-shadow: 0 2px 12px var(--mana-glow);
+  }
+
+  /* Tab content panels - hide/show */
+  .tab-content { display: none; }
+  .tab-content.visible { display: block; }
+  .tab-content-flex { display: none; }
+  .tab-content-flex.visible { display: flex; flex-direction: column; gap: 14px; }
+
+  .familiar-tab-panel {
+    grid-column: 1 / -1;
+    display: none;
+    grid-template-columns: 1fr 320px;
+    gap: 14px;
+    max-width: 1000px;
+    margin: 0 auto;
+    width: 100%;
+  }
+  .familiar-tab-panel.visible { display: grid; }
+
+  /* ===== SKILL TREE ===== */
+  .main-nav-tab.active.skilltree-nav {
+    background: linear-gradient(135deg, #081a10, #102a18);
+    border-color: #40a060;
+    color: #80e0a0;
+    box-shadow: 0 2px 12px #20602030;
+  }
+
+  .skilltree-panel {
+    background: var(--panel);
+    border: 1px solid #203a28;
+    border-radius: 16px;
+    padding: 20px;
+    max-width: 960px;
+    margin: 0 auto;
+    width: 100%;
+  }
+  .st-header {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    margin-bottom: 16px; flex-wrap: wrap; gap: 12px;
+  }
+  .st-dust-display {
+    display: flex; align-items: center; gap: 10px;
+    background: #0e1e14; border: 1px solid #304830;
+    border-radius: 10px; padding: 8px 14px;
+  }
+
+  /* Branch tabs */
+  .st-branch-tabs {
+    display: flex; gap: 6px; margin-bottom: 20px; flex-wrap: wrap;
+  }
+  .st-branch-tab {
+    flex: 1; min-width: 120px;
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 10px; padding: 8px 10px; cursor: pointer;
+    font-family: 'Cinzel Decorative', cursive; font-size: 0.62rem;
+    color: var(--text-dim); text-align: center; transition: all 0.2s;
+    letter-spacing: 0.05em;
+  }
+  .st-branch-tab:hover { border-color: #40a060; color: var(--text); }
+  .st-branch-tab.active {
+    background: linear-gradient(135deg, #081a10, #102a18);
+    border-color: #40a060;
+    color: #80e0a0;
+    box-shadow: 0 2px 10px #20602030;
+  }
+  .st-branch-tab .stb-icon { display: block; font-size: 1.1rem; margin-bottom: 3px; }
+  .st-branch-tab .stb-unlocked { font-size: 0.55rem; color: #50a070; margin-top: 2px; }
+
+  /* Tree area */
+  .st-tree-area {
+    position: relative;
+    min-height: 400px;
+  }
+
+  /* SVG connectors */
+  .st-svg {
+    position: absolute; top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    overflow: visible;
+  }
+  .st-connector {
+    stroke: #304830; stroke-width: 2; fill: none;
+    stroke-dasharray: 4 4;
+  }
+  .st-connector.unlocked { stroke: #40a060; stroke-dasharray: none; }
+
+  /* Skill nodes */
+  .st-nodes {
+    position: relative;
+    display: flex; flex-direction: column; gap: 0;
+  }
+  .st-row {
+    display: flex; justify-content: center;
+    gap: 16px; margin-bottom: 40px; flex-wrap: wrap;
+  }
+  .st-node {
+    position: relative;
+    width: 140px;
+    background: #0e1a10;
+    border: 2px solid #304830;
+    border-radius: 14px;
+    padding: 12px 10px 10px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+  .st-node:hover:not(.locked):not(.purchased) {
+    border-color: #60c080;
+    background: #122018;
+    box-shadow: 0 0 16px #20802040;
+    transform: translateY(-2px);
+  }
+  .st-node.purchased {
+    border-color: #40a060;
+    background: linear-gradient(135deg, #0a2010, #142a18);
+    box-shadow: 0 0 12px #20602030;
+    cursor: default;
+  }
+  .st-node.locked {
+    opacity: 0.35;
+    cursor: not-allowed;
+    border-color: #1e2a1e;
+  }
+  .st-node.affordable:not(.purchased):not(.locked) {
+    border-color: #50c070;
+    box-shadow: 0 0 14px #20803040;
+  }
+  .st-node .sn-icon { font-size: 1.8rem; display: block; margin-bottom: 4px; }
+  .st-node .sn-name {
+    font-family: 'Cinzel Decorative', cursive;
+    font-size: 0.6rem; color: #80e0a0;
+    letter-spacing: 0.06em; line-height: 1.3; display: block; margin-bottom: 4px;
+  }
+  .st-node.locked .sn-name { color: var(--text-dim); }
+  .st-node .sn-desc { font-size: 0.65rem; color: var(--text-dim); font-style: italic; display: block; margin-bottom: 6px; line-height: 1.3; }
+  .st-node .sn-cost {
+    display: inline-block;
+    font-size: 0.62rem; color: var(--gold);
+    background: #1a1408; border: 1px solid #403010;
+    border-radius: 6px; padding: 2px 7px;
+  }
+  .st-node.purchased .sn-cost {
+    background: #102010; border-color: #306020; color: #60c080;
+  }
+  .st-node .sn-badge {
+    position: absolute; top: -8px; right: -8px;
+    background: #40a060; color: #fff;
+    border-radius: 50%; width: 18px; height: 18px;
+    font-size: 0.7rem; display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 0 8px #20602060;
+  }
+  .st-node .sn-req {
+    font-size: 0.58rem; color: #604040; margin-top: 4px; display: block;
+  }
+
+  @media (max-width: 700px) {
+    .game-wrapper { grid-template-columns: 1fr; }
+    .sidebar { display: contents; }
+    .familiars-panel { order: 3; }
+    .prestige-panel { order: 4; }
+    .log-panel { order: 5; }
+  }
+</style>
+</head>
+<body>
+<canvas id="particles"></canvas>
+
+<div class="game-wrapper">
+  <header>
+    <h1>✦ Heracles' Academy ✦</h1>
+    <p>Channel the ley lines. Summon your familiars. Ascend.</p>
+  </header>
+
+  <!-- Resources -->
+  <div class="resources">
+    <div class="res-box">
+      <div class="res-icon">⚡</div>
+      <div class="res-info">
+        <div class="res-name">Ley Power</div>
+        <div class="res-val" id="manaDisplay">0</div>
+        <div class="res-rate" id="manaRate">+0 ley/s</div>
+      </div>
+    </div>
+    <div class="res-box">
+      <div class="res-icon">🧪</div>
+      <div class="res-info">
+        <div class="res-name">Arcane Dust</div>
+        <div class="res-val" id="dustDisplay">0</div>
+        <div class="res-rate" id="dustRate">from prestige</div>
+      </div>
+    </div>
+    <div class="res-box">
+      <div class="res-icon">✨</div>
+      <div class="res-info">
+        <div class="res-name">Ley/Click</div>
+        <div class="res-val" id="clickPowerDisplay">1</div>
+        <div class="res-rate" id="totalMana">Total: 0</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Nav Tabs -->
+  <div class="main-nav" style="grid-column:1/-1">
+    <button class="main-nav-tab active" id="navOrb" onclick="switchTab('orb')">
+      <span class="nav-icon">🗿</span>Ley Lines
+    </button>
+    <button class="main-nav-tab familiar-nav" id="navFamiliars" onclick="switchTab('familiars')">
+      <span class="nav-icon">📜</span>Summons
+    </button>
+    <button class="main-nav-tab battle-nav" id="navBattle" onclick="switchTab('battle')">
+      <span class="nav-icon">⚔️</span>Titan Battles
+    </button>
+    <button class="main-nav-tab" id="navPrestige" onclick="switchTab('prestige')">
+      <span class="nav-icon">🌟</span>Transcend
+    </button>
+    <button class="main-nav-tab skilltree-nav" id="navSkillTree" onclick="switchTab('skilltree')">
+      <span class="nav-icon">🌳</span>Skill Tree
+    </button>
+  </div>
+
+  <!-- TAB: Orb + Upgrades + Auto-click -->
+  <div class="main-area tab-content-flex visible" id="tabOrb">
+    <!-- Orb -->
+    <div class="orb-panel">
+      <div class="orb-container">
+        <div id="mainOrb" onclick="clickOrb(event)">🗿</div>
+      </div>
+      <div>
+        <div class="orb-label">The Ley Lines</div>
+        <div class="orb-sub">Click to channel Ley Power</div>
+      </div>
+      <div style="width:100%; max-width:300px;">
+        <div style="display:flex;justify-content:space-between;font-size:0.72rem;color:var(--text-dim);margin-bottom:4px;">
+          <span>Ley Essence</span><span id="manaBarLabel">0 / 100</span>
+        </div>
+        <div class="mana-bar-wrap"><div class="mana-bar-fill" id="manaBar" style="width:0%"></div></div>
+      </div>
+    </div>
+    <!-- Upgrades -->
+    <div class="spells-panel">
+      <div class="panel-title">⚗️ Arcane Upgrades</div>
+      <div class="spell-grid" id="upgradeGrid"></div>
+    </div>
+    <!-- Auto-clicker -->
+    <div class="autoclicker-panel">
+      <div class="panel-title">⏳ Arcane Pulse</div>
+      <div class="auto-row">
+        <div class="orb-ring-wrap">
+          <svg viewBox="0 0 56 56" width="56" height="56">
+            <circle class="orb-ring-bg" cx="28" cy="28" r="24"/>
+            <circle class="orb-ring-fill" id="autoRing" cx="28" cy="28" r="24"/>
+          </svg>
+          <div class="orb-ring-icon">⚡</div>
+        </div>
+        <div class="auto-info">
+          <div class="auto-title">Auto-Click</div>
+          <div class="auto-status" id="autoStatus">Disabled</div>
+          <div class="auto-speed" id="autoSpeedLabel">Interval: 5.0s</div>
+        </div>
+        <button class="auto-toggle" id="autoToggle">Unlock (250 ⚡)</button>
+      </div>
+      <div class="auto-upgrades" id="autoUpgradeGrid"></div>
+    </div>
+
+    <!-- Ad Power-Up -->
+    <div class="adboost-panel">
+      <div class="panel-title" style="color:#80e090;border-bottom-color:#2a3a20;">⚡ Ley Surge — Ad Power-Up</div>
+      <div class="adboost-row" style="margin-bottom:12px;">
+        <!-- Ring timer -->
+        <div class="adboost-icon-wrap">
+          <svg viewBox="0 0 56 56" width="56" height="56">
+            <circle class="adboost-ring-bg"   cx="28" cy="28" r="24"/>
+            <circle class="adboost-ring-fill" id="adboostRing" cx="28" cy="28" r="24"/>
+          </svg>
+          <div class="adboost-center-icon" id="adboostCenterIcon">⚡</div>
+        </div>
+        <div class="adboost-info">
+          <div class="adboost-title">Ley Surge</div>
+          <div class="adboost-status" id="adboostStatus">Inactive — watch an ad to activate</div>
+          <div class="adboost-stack"  id="adboostStack">Each ad = +10 min · Max 2 hours</div>
+          <!-- Stack pips (12 max = 2h) -->
+          <div class="adboost-pips" id="adboostPips"></div>
+        </div>
+        <button class="adboost-btn" id="adboostBtn" onclick="watchAd()">
+          ▶ Watch Ad<br><span style="font-size:0.58rem;opacity:0.75">+10 min boost</span>
+        </button>
+      </div>
+      <div style="font-size:0.7rem;color:var(--text-dim);font-style:italic;border-top:1px solid #1a2e14;padding-top:10px;">
+        ✦ Ley Surge triples your ley/click for its duration. Stack up to 12 ads (2 hours) for sustained power.
+      </div>
+    </div>
+  </div>
+
+  <!-- Ad modal (shared for all boost types) -->
+  <div class="ad-modal-overlay" id="adModalOverlay" style="display:none;">
+    <div class="ad-modal">
+      <div class="ad-modal-title" id="adModalTitle">📺 Channelling the Ley Grid...</div>
+      <div class="ad-modal-sub" id="adModalSub">Observe the sacred transmission to receive power</div>
+      <div class="ad-progress-wrap"><div class="ad-progress-fill" id="adProgressFill" style="width:0%"></div></div>
+      <div class="ad-timer" id="adTimerText">0:30</div>
+      <div class="ad-skip-hint" id="adSkipHint">Please wait...</div>
+      <button class="ad-close-btn" id="adCloseBtn" onclick="claimAdReward()">⚡ Claim Reward!</button>
+    </div>
+  </div>
+  <div class="familiar-tab-panel tab-content" id="tabFamiliars" style="grid-column:1/-1">
+    <div class="familiars-panel">
+      <div class="panel-title">📜 Summons</div>
+      <div class="tier-tabs" id="tierTabs"></div>
+      <div id="familiarList"></div>
+    </div>
+    <!-- Chronicle in familiar tab -->
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <div class="log-panel">
+        <div class="panel-title" style="margin-bottom:8px;">📜 Chronicle</div>
+        <div id="logFamiliar"></div>
+      </div>
+
+      <!-- Familiar HP Boost -->
+      <div class="adboost-panel" style="border-color:#2a2030;">
+        <div class="panel-title" style="color:#c090ff;border-bottom-color:#2a2030;font-size:0.75rem;">❤️ Aegis Surge — HP Boost</div>
+        <div class="adboost-row" style="margin-bottom:10px;">
+          <div class="adboost-icon-wrap">
+            <svg viewBox="0 0 56 56" width="56" height="56">
+              <circle class="adboost-ring-bg" cx="28" cy="28" r="24" style="stroke:#2a1a30;"/>
+              <circle class="adboost-ring-fill" id="hpBoostRing" cx="28" cy="28" r="24" style="stroke:#c060e0;"/>
+            </svg>
+            <div class="adboost-center-icon" id="hpBoostIcon">❤️</div>
+          </div>
+          <div class="adboost-info">
+            <div class="adboost-title" style="color:#c090ff;">Aegis Surge</div>
+            <div class="adboost-status" id="hpBoostStatus">Inactive — watch an ad to activate</div>
+            <div class="adboost-stack"  id="hpBoostStack">Each ad = +10 min · 3× party HP</div>
+            <div class="adboost-pips"   id="hpBoostPips"></div>
+          </div>
+          <button class="adboost-btn" id="hpBoostBtn" onclick="watchFamAd('hp')" style="border-color:#8040b0;color:#c090ff;">
+            ▶ Watch Ad<br><span style="font-size:0.58rem;opacity:0.75">+10 min HP boost</span>
+          </button>
+        </div>
+        <div style="font-size:0.7rem;color:var(--text-dim);font-style:italic;border-top:1px solid #1a1428;padding-top:8px;">
+          ✦ Triples your battle party's max HP while active.
+        </div>
+      </div>
+
+      <!-- Familiar MP Boost -->
+      <div class="adboost-panel" style="border-color:#1e2a38;">
+        <div class="panel-title" style="color:#60c0ff;border-bottom-color:#1e2a38;font-size:0.75rem;">💧 Ley Tide — MP Boost</div>
+        <div class="adboost-row" style="margin-bottom:10px;">
+          <div class="adboost-icon-wrap">
+            <svg viewBox="0 0 56 56" width="56" height="56">
+              <circle class="adboost-ring-bg" cx="28" cy="28" r="24" style="stroke:#1a2030;"/>
+              <circle class="adboost-ring-fill" id="mpBoostRing" cx="28" cy="28" r="24" style="stroke:#4090e0;"/>
+            </svg>
+            <div class="adboost-center-icon" id="mpBoostIcon">💧</div>
+          </div>
+          <div class="adboost-info">
+            <div class="adboost-title" style="color:#60c0ff;">Ley Tide</div>
+            <div class="adboost-status" id="mpBoostStatus">Inactive — watch an ad to activate</div>
+            <div class="adboost-stack"  id="mpBoostStack">Each ad = +10 min · 2× familiar ley/s</div>
+            <div class="adboost-pips"   id="mpBoostPips"></div>
+          </div>
+          <button class="adboost-btn" id="mpBoostBtn" onclick="watchFamAd('mp')" style="border-color:#2060a0;color:#60c0ff;">
+            ▶ Watch Ad<br><span style="font-size:0.58rem;opacity:0.75">+10 min MP boost</span>
+          </button>
+        </div>
+        <div style="font-size:0.7rem;color:var(--text-dim);font-style:italic;border-top:1px solid #141c28;padding-top:8px;">
+          ✦ Doubles your familiars' ley/s output while active.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: Battle Arena (full width) -->
+  <div class="tab-content" id="tabBattle" style="grid-column:1/-1">
+    <div class="battle-panel">
+      <div class="panel-title" style="color:#e08060;border-bottom-color:#502020;">⚔️ Titan Battles</div>
+      <div class="battle-tabs" id="battleTabs"></div>
+      <div id="battleArena"></div>
+    </div>
+  </div>
+
+  <!-- TAB: Skill Tree -->
+  <div class="tab-content" id="tabSkillTree" style="grid-column:1/-1;display:none;">
+    <div class="skilltree-panel">
+      <div class="st-header">
+        <div>
+          <div class="panel-title" style="border-bottom:none;margin-bottom:4px;">🌳 Arcane Skill Tree</div>
+          <div style="font-size:0.78rem;color:var(--text-dim);font-style:italic;">Spend Arcane Dust to empower your familiars</div>
+        </div>
+        <div class="st-dust-display">
+          <span style="font-size:1.2rem;">✨</span>
+          <div>
+            <div style="font-size:0.65rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.1em;">Arcane Dust</div>
+            <div style="font-family:'Cinzel Decorative',cursive;font-size:1rem;color:var(--gold);" id="stDustDisplay">0</div>
+          </div>
+        </div>
+      </div>
+      <!-- Branch tabs -->
+      <div class="st-branch-tabs" id="stBranchTabs"></div>
+      <!-- Tree canvas area -->
+      <div class="st-tree-area" id="stTreeArea"></div>
+    </div>
+  </div>
+  <div class="tab-content" id="tabPrestige" style="grid-column:1/-1;display:none;">
+    <div style="max-width:480px;margin:0 auto;display:flex;flex-direction:column;gap:14px;">
+      <div class="prestige-panel" style="text-align:center;">
+        <div class="panel-title" style="justify-content:center;border-bottom:none;margin-bottom:8px;">🌟 Transcend</div>
+        <button class="prestige-btn" id="prestigeBtn" disabled>Ascend to a New Age</button>
+        <div class="prestige-info" id="prestigeInfo">Requires 10,000 Ley Power</div>
+      </div>
+      <div class="log-panel">
+        <div class="panel-title" style="margin-bottom:8px;">📜 Chronicle</div>
+        <div id="log"><p>Your journey begins...</p></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ==================== GAME STATE ====================
+const G = {
+  mana: 0,
+  totalMana: 0,
+  totalClicks: 0,
+  dust: 0,
+  clickPower: 1,
+  manaPerSec: 0,
+  prestigeCount: 0,
+  manaBarMax: 100,
+  manaBarCurrent: 0,
+  achievements: [],
+
+  upgrades: [
+    { id:'focus',    name:'Focus Crystal', icon:'💠', desc:'+50% click power',   cost:200,   level:0, maxLevel:8,  effect: g => g.clickPower *= 1.5 },
+    { id:'leyline',  name:'Ley Line Tap',  icon:'⚡', desc:'+3 ley/s',           cost:500,   level:0, maxLevel:8,  effect: g => g.manaPerSec += 3 },
+    { id:'runes',    name:'Rune Scribe',   icon:'🪬', desc:'Familiars 50% faster',cost:2000,  level:0, maxLevel:5,  effect: g => { g._familiarMult = (g._familiarMult||1)*1.5; recalcMPS(); } },
+    { id:'alchemy',  name:'Alchemy Lab',   icon:'⚗️', desc:'+100% click power',  cost:8000,  level:0, maxLevel:6,  effect: g => g.clickPower *= 2 },
+    { id:'sigil',    name:'Arcane Sigil',  icon:'✴️', desc:'+20 ley/s',          cost:25000, level:0, maxLevel:5,  effect: g => g.manaPerSec += 20 },
+    { id:'grimoire', name:'Elder Grimoire',icon:'📖', desc:'Click = 0.5% of MPS',cost:100000,level:0, maxLevel:3,  effect: () => {} },
+  ],
+
+  familiarTiers: [
+    {
+      id: 'creatures', label: 'Creatures', icon: '🐾',
+      familiars: [
+        { id:'faerie',   name:'Faerie',      icon:'🧚', desc:'Tiny tricksters of the wood',              baseCost:150,    level:0, maxLevel:10, baseMps:1,       baseAtk:1,       baseHp:5,        upgradeMult:1.6 },
+        { id:'nymph',    name:'Nymph',       icon:'🌿', desc:'Spirits of stream and glade',               baseCost:1000,   level:0, maxLevel:10, baseMps:6,       baseAtk:4,       baseHp:25,       upgradeMult:1.6 },
+        { id:'satyr',    name:'Satyr',       icon:'🐐', desc:'Wild children of Dionysus',                 baseCost:6000,   level:0, maxLevel:10, baseMps:30,      baseAtk:18,      baseHp:120,      upgradeMult:1.6 },
+        { id:'centaur',  name:'Centaur',     icon:'🏹', desc:'Wise warriors of the ancient hills',        baseCost:40000,  level:0, maxLevel:10, baseMps:150,     baseAtk:80,      baseHp:500,      upgradeMult:1.6 },
+        { id:'griffin',  name:'Griffin',     icon:'🦅', desc:'Noble guardians of divine treasure',        baseCost:150000, level:0, maxLevel:10, baseMps:800,     baseAtk:400,     baseHp:2500,     upgradeMult:1.6 },
+        { id:'minotaur', name:'Minotaur',    icon:'🐂', desc:'Labyrinth terror, bound to your will',      baseCost:400000, level:0, maxLevel:10, baseMps:4000,    baseAtk:2000,    baseHp:12000,    upgradeMult:1.6 },
+        { id:'hydra',    name:'Hydra',       icon:'🐍', desc:'Nine-headed serpent of the Lernaean swamp', baseCost:1000000,level:0, maxLevel:10, baseMps:20000,   baseAtk:10000,   baseHp:60000,    upgradeMult:1.6 },
+      ]
+    },
+    {
+      id: 'heroes', label: 'Heroes', icon: '⚔️',
+      familiars: [
+        { id:'odysseus', name:'Odysseus',  icon:'🌊', desc:'Cunning wanderer of ten thousand seas',  baseCost:500000,    level:0, maxLevel:25, baseMps:2000,    baseAtk:1200,    baseHp:8000,     upgradeMult:1.7, prestigeRequired:1 },
+        { id:'achilles', name:'Achilles',  icon:'🛡️', desc:'Mightiest warrior of the Trojan War',   baseCost:3000000,   level:0, maxLevel:25, baseMps:8000,    baseAtk:6000,    baseHp:35000,    upgradeMult:1.7, prestigeRequired:2 },
+        { id:'perseus',  name:'Perseus',   icon:'🗡️', desc:'Slayer of Medusa, son of Zeus',          baseCost:20000000,  level:0, maxLevel:25, baseMps:35000,   baseAtk:25000,   baseHp:150000,   upgradeMult:1.7, prestigeRequired:3 },
+        { id:'heracles', name:'Heracles',  icon:'🦁', desc:'Champion of the twelve labours',         baseCost:150000000, level:0, maxLevel:25, baseMps:150000,  baseAtk:120000,  baseHp:700000,   upgradeMult:1.7, prestigeRequired:4 },
+        { id:'theseus',  name:'Theseus',   icon:'🌀', desc:'Slayer of the Minotaur, king of Athens', baseCost:1000000000,level:0, maxLevel:25, baseMps:600000,  baseAtk:500000,  baseHp:3000000,  upgradeMult:1.7, prestigeRequired:5 },
+        { id:'jason',    name:'Jason',     icon:'🐏', desc:'Leader of the Argonauts, seeker of the Golden Fleece', baseCost:8000000000, level:0, maxLevel:25, baseMps:2500000, baseAtk:2000000, baseHp:12000000, upgradeMult:1.7, prestigeRequired:6 },
+      ]
+    },
+    {
+      id: 'gods', label: 'Gods', icon: '✨',
+      familiars: [
+        { id:'hermes',   name:'Hermes',    icon:'🪽', desc:'Messenger of Olympus, guide of souls',   baseCost:100000000000,  level:0, maxLevel:50, baseMps:500000,    baseAtk:400000,    baseHp:2500000,    upgradeMult:1.8, prestigeRequired:7  },
+        { id:'athena',   name:'Athena',    icon:'🦉', desc:'Goddess of wisdom and just warfare',     baseCost:800000000000,  level:0, maxLevel:50, baseMps:2500000,   baseAtk:2000000,   baseHp:12000000,   upgradeMult:1.8, prestigeRequired:8  },
+        { id:'apollo',   name:'Apollo',    icon:'☀️', desc:'God of light, music and prophecy',       baseCost:6000000000000, level:0, maxLevel:50, baseMps:10000000,  baseAtk:8000000,   baseHp:50000000,   upgradeMult:1.8, prestigeRequired:9  },
+        { id:'poseidon', name:'Poseidon',  icon:'🔱', desc:'God of the seas, shaker of the earth',   baseCost:5e13,          level:0, maxLevel:50, baseMps:40000000,  baseAtk:35000000,  baseHp:200000000,  upgradeMult:1.8, prestigeRequired:10 },
+        { id:'hades',    name:'Hades',     icon:'💀', desc:'Lord of the underworld and all the dead', baseCost:4e14,         level:0, maxLevel:50, baseMps:160000000, baseAtk:140000000, baseHp:800000000,  upgradeMult:1.8, prestigeRequired:11 },
+        { id:'zeus',     name:'Zeus',      icon:'⚡', desc:'Lord of Olympus, father of all gods',    baseCost:3e15,          level:0, maxLevel:50, baseMps:700000000, baseAtk:600000000, baseHp:3500000000, upgradeMult:1.8, prestigeRequired:12 },
+      ]
+    },
+  ],
+  // flat accessor
+  get familiars() { return this.familiarTiers.flatMap(t => t.familiars); },
+
+  // ===== SKILL TREE =====
+  activeSkillBranch: 'creatures',
+  activeFamiliarTier: 'creatures',
+  purchasedSkills: [],   // array of skill ids
+
+  skillTree: {
+    creatures: {
+      label: 'Creature Mastery', icon: '🐾', color: '#40a060',
+      rows: [
+        [
+          { id:'c_bond',    name:'Primal Bond',     icon:'🌿', desc:'+25% Creature ley/s', cost:1,  requires:[] },
+          { id:'c_swarm',   name:'Swarm Call',      icon:'🐝', desc:'Creatures cost 20% less', cost:1, requires:[] },
+        ],
+        [
+          { id:'c_wild',    name:'Wild Heart',      icon:'🐺', desc:'+50% Creature ley/s', cost:2, requires:['c_bond'] },
+          { id:'c_breed',   name:'Rapid Breeding',  icon:'🥚', desc:'Creatures cost 35% less', cost:2, requires:['c_swarm'] },
+        ],
+        [
+          { id:'c_alpha',   name:'Alpha Presence',  icon:'🦁', desc:'Creatures deal 2x battle dmg', cost:3, requires:['c_wild'] },
+          { id:'c_horde',   name:'Legendary Horde', icon:'🌊', desc:'+100% Creature ley/s', cost:3, requires:['c_wild','c_breed'] },
+          { id:'c_ancient', name:'Ancient Pact',    icon:'🗿', desc:'Unlock hidden creature tier', cost:4, requires:['c_breed'] },
+        ],
+        [
+          { id:'c_titan',   name:'Titan Kin',       icon:'⛰️', desc:'All Creatures +200% ley/s', cost:5, requires:['c_alpha','c_horde'] },
+        ],
+      ]
+    },
+    heroes: {
+      label: 'Hero\'s Path', icon: '⚔️', color: '#c08040',
+      rows: [
+        [
+          { id:'h_valor',   name:'Valor',           icon:'🛡️', desc:'+25% Hero ley/s', cost:1, requires:[] },
+          { id:'h_glory',   name:'Glory Seeker',    icon:'🏆', desc:'Heroes cost 20% less', cost:1, requires:[] },
+        ],
+        [
+          { id:'h_legend',  name:'Living Legend',   icon:'📜', desc:'+50% Hero ley/s', cost:2, requires:['h_valor'] },
+          { id:'h_odyssey', name:'The Long Road',   icon:'🌊', desc:'Heroes cost 35% less', cost:2, requires:['h_glory'] },
+        ],
+        [
+          { id:'h_wrath',   name:'Heroic Wrath',    icon:'⚡', desc:'Heroes deal 2x battle dmg', cost:3, requires:['h_legend'] },
+          { id:'h_saga',    name:'Epic Saga',        icon:'📖', desc:'+100% Hero ley/s', cost:3, requires:['h_legend','h_odyssey'] },
+          { id:'h_mentor',  name:'Divine Mentor',   icon:'🧙', desc:'Heroes boost Creature ley/s +50%', cost:3, requires:['h_odyssey'] },
+        ],
+        [
+          { id:'h_demigod', name:'Demigod Ascent',  icon:'🌟', desc:'All Heroes +200% ley/s', cost:5, requires:['h_wrath','h_saga'] },
+        ],
+      ]
+    },
+    gods: {
+      label: 'Divine Favour', icon: '✨', color: '#a060d0',
+      rows: [
+        [
+          { id:'g_grace',   name:'Divine Grace',   icon:'🪽', desc:'+25% God ley/s', cost:2, requires:[] },
+          { id:'g_decree',  name:'Olympian Decree',icon:'📜', desc:'Gods cost 20% less', cost:2, requires:[] },
+        ],
+        [
+          { id:'g_bless',   name:'Godly Blessing', icon:'☀️', desc:'+50% God ley/s', cost:3, requires:['g_grace'] },
+          { id:'g_altar',   name:'Sacred Altar',   icon:'🏛️', desc:'Gods cost 35% less', cost:3, requires:['g_decree'] },
+        ],
+        [
+          { id:'g_wrath',   name:'Divine Wrath',   icon:'⚡', desc:'Gods deal 3x battle dmg', cost:4, requires:['g_bless'] },
+          { id:'g_cosmos',  name:'Cosmic Order',   icon:'🌌', desc:'+150% God ley/s', cost:4, requires:['g_bless','g_altar'] },
+          { id:'g_herald',  name:'Divine Herald',  icon:'📯', desc:'Gods boost all familiars +25%', cost:4, requires:['g_altar'] },
+        ],
+        [
+          { id:'g_pantheon',name:'Full Pantheon',  icon:'🔱', desc:'All familiars +300% ley/s', cost:8, requires:['g_wrath','g_cosmos','g_herald'] },
+        ],
+      ]
+    },
+  },
+  activeBattleZone: 0,
+  battle: null,       // active battle instance or null
+  battleParty: [],    // array of familiar ids selected for battle
+  defeatedTitans: [], // ids of defeated titans
+
+  battleZones: [
+    {
+      id: 'foothills', name: 'Foothills of Olympus', icon: '⛰️', prestigeRequired: 0,
+      titans: [
+        { id:'kronos_jr',  name:'Kronos Spawn',    icon:'⏳', lore:'A lesser echo of the Titan lord, bound in time',         hp:200,    maxHp:200,    atk:8,    def:5,    reward:150,    dustReward:0 },
+        { id:'atlas_jr',   name:'Atlas Whelp',     icon:'🌍', lore:'Cursed to bear a small but heavy stone',                 hp:500,    maxHp:500,    atk:18,   def:10,   reward:400,    dustReward:0 },
+        { id:'hyperion',   name:'Hyperion',        icon:'🔥', lore:'Titan of heavenly light, blinding and fierce',            hp:1200,   maxHp:1200,   atk:40,   def:20,   reward:1200,   dustReward:1 },
+      ]
+    },
+    {
+      id: 'ashen_vale', name: 'Ashen Vale', icon: '🌋', prestigeRequired: 0,
+      titans: [
+        { id:'typhon_scout', name:'Typhon\'s Scout', icon:'🦂', lore:'Advance guard of the great monster Typhon',             hp:3000,   maxHp:3000,   atk:70,   def:30,   reward:3000,   dustReward:0 },
+        { id:'echidna_jr',   name:'Echidna Spawn',  icon:'🐉', lore:'Child of the mother of all monsters',                   hp:8000,   maxHp:8000,   atk:150,  def:60,   reward:8000,   dustReward:1 },
+        { id:'empusa',       name:'Empusa',         icon:'🔱', lore:'Shapeshifting demoness of the underworld roads',         hp:20000,  maxHp:20000,  atk:320,  def:120,  reward:25000,  dustReward:1 },
+      ]
+    },
+    {
+      id: 'styx_shores', name: 'Shores of the Styx', icon: '💧', prestigeRequired: 0,
+      titans: [
+        { id:'coeus',   name:'Coeus',   icon:'🌀', lore:'Titan of intellect, his mind cuts like a blade',         hp:5000,   maxHp:5000,   atk:90,   def:40,   reward:5000,   dustReward:1 },
+        { id:'crius',   name:'Crius',   icon:'🌟', lore:'Titan of the heavenly constellations',                   hp:15000,  maxHp:15000,  atk:200,  def:80,   reward:15000,  dustReward:2 },
+        { id:'iapetus', name:'Iapetus', icon:'🗿', lore:'Titan of mortality, ancient and relentless',              hp:40000,  maxHp:40000,  atk:450,  def:160,  reward:50000,  dustReward:3 },
+      ]
+    },
+    {
+      id: 'elysian_wastes', name: 'Elysian Wastes', icon: '🏜️', prestigeRequired: 0,
+      titans: [
+        { id:'perses',    name:'Perses',    icon:'⚡', lore:'Titan of destruction, herald of ruin',                hp:80000,  maxHp:80000,  atk:800,  def:280,  reward:100000,  dustReward:2 },
+        { id:'menoetius', name:'Menoetius', icon:'💢', lore:'Titan of rash action and violent anger',              hp:200000, maxHp:200000, atk:1800, def:600,  reward:300000,  dustReward:3 },
+        { id:'pallas',    name:'Pallas',    icon:'🌪️', lore:'Titan of warcraft, lord of the storm spear',          hp:500000, maxHp:500000, atk:4000, def:1200, reward:800000,  dustReward:4 },
+      ]
+    },
+    {
+      id: 'sea_of_chaos', name: 'Sea of Chaos', icon: '🌊', prestigeRequired: 0,
+      titans: [
+        { id:'oceanus',  name:'Oceanus',  icon:'🐋', lore:'Titan of the world-ocean, vast and eternal',            hp:1000000,  maxHp:1000000,  atk:8000,   def:2500,  reward:2000000,  dustReward:4 },
+        { id:'tethys',   name:'Tethys',   icon:'🌊', lore:'Mother of rivers, goddess of the deep fresh water',     hp:3000000,  maxHp:3000000,  atk:18000,  def:5500,  reward:6000000,  dustReward:5 },
+        { id:'themis',   name:'Themis',   icon:'⚖️', lore:'Titan of divine law and order — justice incarnate',     hp:8000000,  maxHp:8000000,  atk:40000,  def:12000, reward:20000000, dustReward:6 },
+      ]
+    },
+    {
+      id: 'void_summit', name: 'Void Summit', icon: '🌑', prestigeRequired: 0,
+      titans: [
+        { id:'lelantos', name:'Lelantos', icon:'🌫️', lore:'Titan of the hidden, master of the unseen hunt',        hp:20000000,  maxHp:20000000,  atk:90000,   def:28000,  reward:50000000,  dustReward:6 },
+        { id:'astraeus', name:'Astraeus', icon:'🌠', lore:'Titan of the dusk, father of the planets and winds',    hp:60000000,  maxHp:60000000,  atk:200000,  def:65000,  reward:150000000, dustReward:7 },
+        { id:'eos',      name:'Eos',      icon:'🌅', lore:'Titaness of the dawn, mother of the morning star',      hp:150000000, maxHp:150000000, atk:450000,  def:140000, reward:500000000, dustReward:8 },
+      ]
+    },
+    {
+      id: 'iron_peaks', name: 'Iron Peaks', icon: '⚒️', prestigeRequired: 0,
+      titans: [
+        { id:'selene',   name:'Selene',   icon:'🌙', lore:'Titaness of the moon, her gaze withers the bold',       hp:400000000,  maxHp:400000000,  atk:1000000,  def:320000,  reward:1500000000,  dustReward:8  },
+        { id:'helios',   name:'Helios',   icon:'☀️', lore:'Titan of the sun, his radiance burns all it touches',   hp:1200000000, maxHp:1200000000, atk:2500000,  def:800000,  reward:5000000000,  dustReward:10 },
+        { id:'mnemosyne',name:'Mnemosyne',icon:'💭', lore:'Titaness of memory — she remembers every wound',        hp:3500000000, maxHp:3500000000, atk:6000000,  def:1800000, reward:15000000000, dustReward:12 },
+      ]
+    },
+    {
+      id: 'olympus_root', name: 'Roots of Olympus', icon: '🏔️', prestigeRequired: 0,
+      titans: [
+        { id:'rhea',     name:'Rhea',     icon:'🌸', lore:'Queen of the Titans, mother of the Olympians',          hp:10000000000,  maxHp:10000000000,  atk:15000000,  def:4500000,  reward:50000000000,  dustReward:14 },
+        { id:'atlas',    name:'Atlas',    icon:'🗺️', lore:'Bearer of the heavens, shoulders that shatter worlds',  hp:35000000000,  maxHp:35000000000,  atk:40000000,  def:12000000, reward:200000000000, dustReward:16 },
+        { id:'kronos',   name:'Kronos',   icon:'⚔️', lore:'Lord of Time himself — he devoured his own children',   hp:120000000000, maxHp:120000000000, atk:120000000, def:35000000, reward:800000000000, dustReward:20 },
+      ]
+    },
+    {
+      id: 'tartarus', name: 'Gates of Tartarus', icon: '🌌', prestigeRequired: 0,
+      titans: [
+        { id:'ouranos',   name:'Ouranos',  icon:'🌠', lore:'The primordial sky, father of all Titans',             hp:500000000000,  maxHp:500000000000,  atk:350000000,  def:100000000, reward:3000000000000,  dustReward:25 },
+        { id:'gaia',      name:'Gaia',     icon:'🌍', lore:'Mother Earth herself, the oldest of all powers',       hp:2000000000000, maxHp:2000000000000, atk:1000000000, def:300000000, reward:12000000000000, dustReward:30 },
+        { id:'chaos_titan',name:'Chaos',   icon:'🌑', lore:'The primordial void — the first thing that ever existed',hp:1e13, maxHp:1e13, atk:3000000000, def:900000000, reward:5e13, dustReward:40 },
+      ]
+    },
+  ],
+
+  // Dynamically generates 3 titans per prestige level
+  get prestigeZones() {
+    const zones = [];
+    const PRESTIGE_TITANS = [
+      { suffix:'_wraith', name:'Wraith',   icon:'👻', lore:'An echo of a fallen titan, born of regret and rage' },
+      { suffix:'_colossus',name:'Colossus',icon:'🗿', lore:'A colossal remnant of a bygone age, immovable' },
+      { suffix:'_revenant',name:'Revenant',icon:'💀', lore:'Death could not hold this ancient titan' },
+    ];
+    const ZONE_NAMES = [
+      { name:'Prestige Realm', icon:'🌟' }, { name:'Ascendant Wastes', icon:'✨' },
+      { name:'Eternal Forge',  icon:'🔱' }, { name:'Void Nexus', icon:'🌑' },
+      { name:'Chaos Rift',     icon:'🌀' }, { name:'Primordial Deep', icon:'🌊' },
+      { name:'Sky Citadel',    icon:'☁️' }, { name:'Abyssal Peak', icon:'⛰️' },
+      { name:'Titan\'s Grave', icon:'💠' }, { name:'Olympus Beyond', icon:'🏛️' },
+    ];
+    for (let p = 1; p <= this.prestigeCount; p++) {
+      const scale = Math.pow(50, p);
+      const zoneMeta = ZONE_NAMES[(p - 1) % ZONE_NAMES.length];
+      const titans = PRESTIGE_TITANS.map((t, ti) => {
+        const tierScale = Math.pow(5, ti);
+        return {
+          id: `p${p}_${t.suffix}`,
+          name: `${t.name} of Age ${p}`,
+          icon: t.icon,
+          lore: t.lore,
+          hp:      Math.floor(500 * scale * tierScale),
+          maxHp:   Math.floor(500 * scale * tierScale),
+          atk:     Math.floor(20  * scale * tierScale),
+          def:     Math.floor(8   * scale * tierScale),
+          reward:  Math.floor(1000 * scale * tierScale),
+          dustReward: p + ti,
+        };
+      });
+      zones.push({
+        id: `prestige_${p}`,
+        name: `${zoneMeta.name} ${p}`,
+        icon: zoneMeta.icon,
+        prestigeRequired: p,
+        isPrestigeZone: true,
+        titans,
+      });
+    }
+    return zones;
+  },
+
+  get allZones() { return [...this.battleZones, ...this.prestigeZones]; },
+  autoUnlocked: false,
+  autoClick: false,
+  autoInterval: 5.0,
+  autoTimer: 0,
+
+  // Ad boost - click power
+  adBoostRemaining: 0,
+  AD_BOOST_PER_AD: 600,
+  AD_BOOST_MAX: 7200,
+  AD_BOOST_MULT: 3,
+
+  // Ad boost - familiar HP (battle party HP multiplier)
+  famHpBoostRemaining: 0,
+  FAM_HP_BOOST_PER_AD: 600,
+  FAM_HP_BOOST_MAX: 7200,
+  FAM_HP_BOOST_MULT: 3,
+
+  // Ad boost - familiar MP (ley/s multiplier)
+  famMpBoostRemaining: 0,
+  FAM_MP_BOOST_PER_AD: 600,
+  FAM_MP_BOOST_MAX: 7200,
+  FAM_MP_BOOST_MULT: 2,
+
+  autoUpgrades: [
+    { id:'tempo',  name:'Steady Rhythm',   icon:'🌀', desc:'Pulse every 4s',    cost:5000,   reduction:1.0, purchased:false },
+    { id:'rhythm', name:'Quickened Pulse', icon:'💫', desc:'Pulse every 3s',    cost:25000,  reduction:1.0, purchased:false },
+    { id:'haste',  name:'Rapid Flow',      icon:'⚗️', desc:'Pulse every 2s',    cost:100000, reduction:1.0, purchased:false },
+    { id:'surge',  name:'Ley Surge Tap',   icon:'⚡', desc:'Pulse every 1.5s',  cost:500000, reduction:0.5, purchased:false },
+    { id:'torrent',name:'Torrent',         icon:'🌊', desc:'Pulse every 1s',    cost:2500000,reduction:0.5, purchased:false },
+  ],
+  _familiarMult: 1,
+};
+
+const achievementDefs = [
+  { id:'first_click', name:'First Spark', desc:'Click the orb for the first time', check: g => g.totalMana >= 1 },
+  { id:'mana_100', name:'Ley Seeker', desc:'Collect 100 Ley Power', check: g => g.totalMana >= 100 },
+  { id:'mana_1000', name:'Ley Adept', desc:'Collect 1,000 Ley Power', check: g => g.totalMana >= 1000 },
+  { id:'first_familiar', name:'Bonded', desc:'Summon your first familiar', check: g => g.familiars.some(f=>f.level>0) },
+  { id:'prestige1', name:'Ascended', desc:'Prestige for the first time', check: g => g.prestigeCount >= 1 },
+];
+
+// ==================== HELPERS ====================
+function fmt(n) {
+  if (n >= 1e9) return (n/1e9).toFixed(2) + 'B';
+  if (n >= 1e6) return (n/1e6).toFixed(2) + 'M';
+  if (n >= 1e3) return (n/1e3).toFixed(1) + 'K';
+  if (n < 10)   return parseFloat(n.toFixed(2)).toString();
+  return Math.floor(n).toString();
+}
+
+const AUTO_MIN = 1.0;
+
+function calcAutoInterval() {
+  // Each purchased upgrade sets a new fixed interval (they are ordered fastest-last)
+  // Start at base 5s, each purchase locks in a faster speed
+  let interval = 5.0;
+  G.autoUpgrades.forEach(u => { if (u.purchased) interval -= u.reduction; });
+  return Math.max(AUTO_MIN, interval);
+}
+
+
+// Cost to summon (level 0→1) or upgrade (level N→N+1)
+function famCost(f) {
+  return Math.floor(f.baseCost * Math.pow(f.upgradeMult, f.level));
+}
+// Current mps output at f.level (0 = not summoned = 0 mps)
+function famMps(f) {
+  if (f.level === 0) return 0;
+  return f.baseMps * Math.pow(f.upgradeMult, f.level - 1);
+}
+// Current atk at f.level
+function famAtk(f) {
+  if (f.level === 0) return f.baseAtk;
+  return Math.floor(f.baseAtk * Math.pow(f.upgradeMult, f.level - 1));
+}
+// Current hp at f.level
+function famHp(f) {
+  if (f.level === 0) return f.baseHp;
+  return Math.floor(f.baseHp * Math.pow(f.upgradeMult, f.level - 1));
+}
+// Label for next action
+function famAction(f) {
+  if (f.level === 0) return 'Summon';
+  if (f.level >= f.maxLevel) return 'Max';
+  return `Upgrade (Lv${f.level}→${f.level+1})`;
+}
+
+function recalcMPS() {
+  const base = G.upgrades.find(u=>u.id==='leyline').level * 3 + G.upgrades.find(u=>u.id==='sigil').level * 20;
+  let totalFamMPS = 0;
+  G.familiarTiers.forEach(tier => {
+    const skillMult = getSkillMultiplier(tier.id);
+    tier.familiars.forEach(f => {
+      totalFamMPS += famMps(f) * skillMult;
+    });
+  });
+  const mpBoostMult = G.famMpBoostRemaining > 0 ? G.FAM_MP_BOOST_MULT : 1;
+  G.manaPerSec = base + totalFamMPS * (G._familiarMult||1) * mpBoostMult;
+}
+
+function recalcClickPower() {
+  let cp = 1 + G.prestigeCount * 2;
+  cp *= Math.pow(2, G.upgrades.find(u=>u.id==='focus').level);
+  cp *= Math.pow(3, G.upgrades.find(u=>u.id==='alchemy').level);
+  // +0.01 per 10 clicks (all-time, including auto)
+  cp += Math.floor(G.totalClicks / 10) * 0.01;
+  G.clickPower = cp;
+  const grim = G.upgrades.find(u=>u.id==='grimoire');
+  if (grim.level > 0) G.clickPower += G.manaPerSec * 0.005 * grim.level;
+  // Ad boost multiplier
+  if (G.adBoostRemaining > 0) G.clickPower *= G.AD_BOOST_MULT;
+}
+
+function renderAutoUpgrades() {
+  const grid = document.getElementById('autoUpgradeGrid');
+  if (!grid) return;
+
+  if (grid.children.length !== G.autoUpgrades.length) {
+    grid.innerHTML = '';
+    G.autoUpgrades.forEach((u, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'auto-upg-btn';
+      btn.innerHTML = `
+        <span class="au-lv"></span>
+        <span class="au-icon">${u.icon}</span>
+        <span class="au-name">${u.name}</span>
+        <span class="au-val">${u.desc}</span>
+        <span class="au-cost"></span>
+      `;
+      btn.addEventListener('click', () => buyAutoUpgrade(i));
+      grid.appendChild(btn);
+    });
+  }
+  G.autoUpgrades.forEach((u, i) => {
+    const btn = grid.children[i];
+    if (!btn) return;
+    // Must purchase in order
+    const prevPurchased = i === 0 || G.autoUpgrades[i-1].purchased;
+    const locked = !prevPurchased;
+    btn.disabled = u.purchased || locked || G.mana < u.cost;
+    btn.querySelector('.au-lv').textContent   = u.purchased ? '✓' : (locked ? '🔒' : '');
+    btn.querySelector('.au-cost').textContent = u.purchased ? 'Purchased' : (locked ? 'Locked' : fmt(u.cost) + ' ⚡');
+    btn.querySelector('.au-val').textContent  = u.desc;
+    btn.classList.toggle('purchased', u.purchased);
+    btn.classList.toggle('upgrade-locked', locked);
+  });
+}
+
+function buyAutoUpgrade(i) {
+  const u = G.autoUpgrades[i];
+  if (u.purchased) return;
+  if (i > 0 && !G.autoUpgrades[i-1].purchased) return; // must buy in order
+  if (G.mana < u.cost) return;
+  G.mana -= u.cost;
+  u.purchased = true;
+  G.autoInterval = calcAutoInterval();
+  if (G.autoTimer > G.autoInterval) G.autoTimer = G.autoInterval;
+  log(`⏳ ${u.name} unlocked — pulse now every ${G.autoInterval.toFixed(1)}s`);
+  renderAutoUpgrades();
+}
+
+function autoClickOrb() {
+  // Simulate a click at orb center
+  const orb = document.getElementById('mainOrb');
+  const rect = orb.getBoundingClientRect();
+  const fakeEvent = { clientX: rect.left + rect.width/2, clientY: rect.top + rect.height/2 };
+  clickOrb(fakeEvent);
+}
+
+function updateAutoRing(dt) {
+  G.autoInterval = calcAutoInterval();
+  const ring = document.getElementById('autoRing');
+  const statusEl = document.getElementById('autoStatus');
+  const speedEl = document.getElementById('autoSpeedLabel');
+  if (!ring || !statusEl || !speedEl) return;
+  const circumference = 2 * Math.PI * 24; // r=24
+
+  if (!G.autoUnlocked) {
+    ring.style.strokeDashoffset = circumference;
+    ring.classList.remove('ready');
+    statusEl.textContent = 'Locked';
+    speedEl.textContent = 'Cost: 250 ⚡ to unlock';
+    return;
+  }
+
+  if (!G.autoClick) {
+    ring.style.strokeDashoffset = circumference;
+    ring.classList.remove('ready');
+    statusEl.textContent = 'Disabled';
+    speedEl.textContent = `Interval: ${G.autoInterval.toFixed(1)}s`;
+    return;
+  }
+
+  G.autoTimer += dt;
+  const progress = Math.min(G.autoTimer / G.autoInterval, 1);
+  const offset = circumference * (1 - progress);
+  ring.style.strokeDashoffset = offset;
+
+  const remaining = Math.max(0, G.autoInterval - G.autoTimer).toFixed(1);
+  statusEl.textContent = `Next pulse in ${remaining}s`;
+  speedEl.textContent = `Interval: ${G.autoInterval.toFixed(1)}s`;
+
+  if (G.autoTimer >= G.autoInterval) {
+    ring.classList.add('ready');
+    autoClickOrb();
+    G.autoTimer = 0;
+    setTimeout(() => ring.classList.remove('ready'), 300);
+  } else {
+    ring.classList.remove('ready');
+  }
+}
+
+
+// ==================== SKILL TREE ====================
+
+function getSkillMultiplier(tierId) {
+  const p = G.purchasedSkills;
+  let mult = 1;
+  if (tierId === 'creatures') {
+    if (p.includes('c_bond'))    mult *= 1.25;
+    if (p.includes('c_wild'))    mult *= 1.50;
+    if (p.includes('c_horde'))   mult *= 2.00;
+    if (p.includes('c_titan'))   mult *= 3.00;
+    if (p.includes('h_mentor'))  mult *= 1.50; // cross-branch
+    if (p.includes('g_herald'))  mult *= 1.25; // cross-branch
+    if (p.includes('g_pantheon'))mult *= 4.00; // global
+  } else if (tierId === 'heroes') {
+    if (p.includes('h_valor'))   mult *= 1.25;
+    if (p.includes('h_legend'))  mult *= 1.50;
+    if (p.includes('h_saga'))    mult *= 2.00;
+    if (p.includes('h_demigod')) mult *= 3.00;
+    if (p.includes('g_herald'))  mult *= 1.25;
+    if (p.includes('g_pantheon'))mult *= 4.00;
+  } else if (tierId === 'gods') {
+    if (p.includes('g_grace'))   mult *= 1.25;
+    if (p.includes('g_bless'))   mult *= 1.50;
+    if (p.includes('g_cosmos'))  mult *= 2.50;
+    if (p.includes('g_pantheon'))mult *= 4.00;
+  }
+  return mult;
+}
+
+function getSkillCostDiscount(tierId) {
+  const p = G.purchasedSkills;
+  let disc = 1;
+  if (tierId === 'creatures') {
+    if (p.includes('c_swarm'))  disc *= 0.80;
+    if (p.includes('c_breed'))  disc *= 0.65;
+  } else if (tierId === 'heroes') {
+    if (p.includes('h_glory'))  disc *= 0.80;
+    if (p.includes('h_odyssey'))disc *= 0.65;
+  } else if (tierId === 'gods') {
+    if (p.includes('g_decree')) disc *= 0.80;
+    if (p.includes('g_altar'))  disc *= 0.65;
+  }
+  return disc;
+}
+
+function getSkillBattleMultiplier(tierId) {
+  const p = G.purchasedSkills;
+  let mult = 1;
+  if (tierId === 'creatures' && p.includes('c_alpha'))  mult *= 2;
+  if (tierId === 'heroes' && p.includes('h_wrath'))     mult *= 2;
+  if (tierId === 'gods' && p.includes('g_wrath'))       mult *= 3;
+  return mult;
+}
+
+function isSkillUnlocked(skillId) {
+  // Find the skill and check its requires
+  for (const branch of Object.values(G.skillTree)) {
+    for (const row of branch.rows) {
+      const skill = row.find(s => s.id === skillId);
+      if (skill) return skill.requires.every(r => G.purchasedSkills.includes(r));
+    }
+  }
+  return false;
+}
+
+function buySkill(skillId) {
+  if (G.purchasedSkills.includes(skillId)) return;
+  if (!isSkillUnlocked(skillId)) return;
+  // Find skill
+  let skill = null;
+  for (const branch of Object.values(G.skillTree)) {
+    for (const row of branch.rows) {
+      const s = row.find(x => x.id === skillId);
+      if (s) { skill = s; break; }
+    }
+    if (skill) break;
+  }
+  if (!skill) return;
+  if (G.dust < skill.cost) { showToast('✨ Not enough Arcane Dust', `Need ${skill.cost} ✨`); return; }
+  G.dust -= skill.cost;
+  G.purchasedSkills.push(skillId);
+  log(`✨ Skill unlocked: ${skill.name}`);
+  showToast(`✨ ${skill.name}`, skill.desc);
+  recalcMPS();
+  renderSkillTree();
+  renderUI(); // update dust display
+}
+
+function renderSkillTree() {
+  // Update dust in skill tree panel
+  const stDust = document.getElementById('stDustDisplay');
+  if (stDust) stDust.textContent = G.dust;
+
+  // Branch tabs
+  const tabsEl = document.getElementById('stBranchTabs');
+  if (!tabsEl) return;
+  tabsEl.innerHTML = '';
+  Object.entries(G.skillTree).forEach(([key, branch]) => {
+    const totalNodes = branch.rows.flat().length;
+    const purchased = branch.rows.flat().filter(s => G.purchasedSkills.includes(s.id)).length;
+    const tab = document.createElement('button');
+    tab.className = 'st-branch-tab' + (G.activeSkillBranch === key ? ' active' : '');
+    tab.innerHTML = `<span class="stb-icon">${branch.icon}</span>${branch.label}<span class="stb-unlocked">${purchased}/${totalNodes} unlocked</span>`;
+    tab.onclick = () => { G.activeSkillBranch = key; renderSkillTree(); };
+    tabsEl.appendChild(tab);
+  });
+
+  // Tree area
+  const area = document.getElementById('stTreeArea');
+  if (!area) return;
+  area.innerHTML = '';
+
+  const branch = G.skillTree[G.activeSkillBranch];
+
+  // Build node elements in rows
+  const nodesDiv = document.createElement('div');
+  nodesDiv.className = 'st-nodes';
+
+  // We'll track node positions for SVG connectors
+  const nodePositions = {}; // skillId -> {cx, cy}
+
+  branch.rows.forEach((row, rowIdx) => {
+    const rowDiv = document.createElement('div');
+    rowDiv.className = 'st-row';
+    rowDiv.style.marginBottom = rowIdx < branch.rows.length - 1 ? '50px' : '16px';
+
+    row.forEach(skill => {
+      const purchased = G.purchasedSkills.includes(skill.id);
+      const unlocked = isSkillUnlocked(skill.id);
+      const affordable = G.dust >= skill.cost;
+
+      const node = document.createElement('div');
+      node.className = 'st-node' +
+        (purchased ? ' purchased' : '') +
+        (!unlocked && !purchased ? ' locked' : '') +
+        (unlocked && affordable && !purchased ? ' affordable' : '');
+      node.id = `stnode-${skill.id}`;
+      node.innerHTML = `
+        ${purchased ? '<div class="sn-badge">✓</div>' : ''}
+        <span class="sn-icon">${skill.icon}</span>
+        <span class="sn-name">${skill.name}</span>
+        <span class="sn-desc">${skill.desc}</span>
+        <span class="sn-cost">${purchased ? '✓ Purchased' : `${skill.cost} ✨`}</span>
+        ${!unlocked && skill.requires.length ? `<span class="sn-req">🔒 Requires: ${skill.requires.map(r => {
+          for (const b of Object.values(G.skillTree)) for (const rw of b.rows) { const s = rw.find(x=>x.id===r); if(s) return s.name; } return r;
+        }).join(', ')}</span>` : ''}
+      `;
+      if (!purchased) node.onclick = () => buySkill(skill.id);
+      rowDiv.appendChild(node);
+    });
+
+    nodesDiv.appendChild(rowDiv);
+  });
+
+  area.appendChild(nodesDiv);
+
+  // Draw SVG connectors after DOM is laid out
+  requestAnimationFrame(() => {
+    // Remove old SVG
+    const oldSvg = area.querySelector('.st-svg');
+    if (oldSvg) oldSvg.remove();
+
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.className = 'st-svg';
+    svg.style.pointerEvents = 'none';
+
+    const areaRect = area.getBoundingClientRect();
+
+    branch.rows.forEach(row => {
+      row.forEach(skill => {
+        const childEl = document.getElementById(`stnode-${skill.id}`);
+        if (!childEl) return;
+        const childRect = childEl.getBoundingClientRect();
+        const cx = childRect.left - areaRect.left + childRect.width / 2;
+        const cy = childRect.top - areaRect.top;
+
+        skill.requires.forEach(reqId => {
+          const parentEl = document.getElementById(`stnode-${reqId}`);
+          if (!parentEl) return;
+          const parentRect = parentEl.getBoundingClientRect();
+          const px = parentRect.left - areaRect.left + parentRect.width / 2;
+          const py = parentRect.top - areaRect.top + parentRect.height;
+
+          const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          const midY = (py + cy) / 2;
+          path.setAttribute('d', `M ${px} ${py} C ${px} ${midY}, ${cx} ${midY}, ${cx} ${cy}`);
+          const bothPurchased = G.purchasedSkills.includes(skill.id) && G.purchasedSkills.includes(reqId);
+          const parentPurchased = G.purchasedSkills.includes(reqId);
+          path.setAttribute('class', 'st-connector' + (parentPurchased ? ' unlocked' : ''));
+          svg.appendChild(path);
+        });
+      });
+    });
+
+    area.insertBefore(svg, area.firstChild);
+  });
+}
+
+
+function isBattleUnlocked() {
+  // Requires the 3rd creature (satyr, index 2) to be summoned
+  const satyr = G.familiarTiers[0].familiars[2];
+  return satyr && satyr.level > 0;
+}
+
+function switchTab(tab) {
+  const tabs = ['orb','familiars','battle','prestige','skilltree'];
+  const navIds = { orb:'navOrb', familiars:'navFamiliars', battle:'navBattle', prestige:'navPrestige', skilltree:'navSkillTree' };
+  const contentIds = { orb:'tabOrb', familiars:'tabFamiliars', battle:'tabBattle', prestige:'tabPrestige', skilltree:'tabSkillTree' };
+
+  tabs.forEach(t => {
+    const nav = document.getElementById(navIds[t]);
+    const content = document.getElementById(contentIds[t]);
+    if (!nav || !content) return;
+    const isActive = t === tab;
+    nav.classList.toggle('active', isActive);
+    if (t === 'orb') {
+      content.classList.toggle('visible', isActive);
+    } else if (t === 'familiars') {
+      content.style.display = isActive ? 'grid' : 'none';
+    } else {
+      content.style.display = isActive ? 'block' : 'none';
+    }
+  });
+
+  if (tab === 'battle') renderBattle();
+  if (tab === 'familiars') renderFamiliars();
+  if (tab === 'skilltree') renderSkillTree();
+}
+
+
+
+function getBattlePower() {
+  let power = 0;
+  G.battleParty.forEach(fid => {
+    const f = G.familiars.find(x => x.id === fid);
+    if (f && f.level > 0) power += famMps(f) * Math.min(f.level, 10);
+  });
+  return Math.max(1, Math.floor(power / 10));
+}
+
+function getPartyMaxHp() {
+  let hp = 100;
+  G.battleParty.forEach(fid => {
+    const f = G.familiars.find(x => x.id === fid);
+    if (f && f.level > 0) hp += famMps(f) * Math.min(f.level, 5) * 2;
+  });
+  const hpBoostMult = G.famHpBoostRemaining > 0 ? G.FAM_HP_BOOST_MULT : 1;
+  return Math.max(100, hp) * hpBoostMult;
+}
+
+function startBattle(titanId) {
+  const zone = G.allZones[G.activeBattleZone];
+  const titanIdx = zone.titans.findIndex(t => t.id === titanId);
+  const titanDef = zone.titans[titanIdx];
+  if (!titanDef) return;
+  if (G.defeatedTitans.includes(titanId)) return; // one-time only
+  if (titanIdx > 0 && !G.defeatedTitans.includes(zone.titans[titanIdx - 1].id)) return; // must be sequential
+  if (G.battleParty.length === 0) { blogMsg('⚠️ Select at least one familiar first!', ''); return; }
+  G.battle = {
+    titanId,
+    titanHp: titanDef.maxHp,
+    titanMaxHp: titanDef.maxHp,
+    partyHp: getPartyMaxHp(),
+    partyMaxHp: getPartyMaxHp(),
+    fighting: true,
+    tickTimer: 0,
+    tickInterval: 1.0,
+    result: null,
+  };
+  blogMsg(`⚔️ Battle begins against ${titanDef.name}!`, 'hit-titan');
+  renderBattle();
+}
+
+function retreatBattle() {
+  if (!G.battle) return;
+  G.battle.fighting = false;
+  G.battle.result = 'retreat';
+  blogMsg('🏃 Your party retreats...', '');
+  G.battle = null;
+  renderBattle();
+}
+
+function tickBattle(dt) {
+  if (!G.battle || !G.battle.fighting) return;
+  G.battle.tickTimer += dt;
+  if (G.battle.tickTimer < G.battle.tickInterval) return;
+  G.battle.tickTimer = 0;
+
+  const zone = G.allZones[G.activeBattleZone];
+  const titanDef = zone.titans.find(t => t.id === G.battle.titanId);
+  const partyAtk = getBattlePower();
+
+  const dmgToTitan = Math.max(1, partyAtk - Math.floor(titanDef.def * 0.3) + Math.floor(Math.random() * partyAtk * 0.3));
+  G.battle.titanHp = Math.max(0, G.battle.titanHp - dmgToTitan);
+
+  const dmgToParty = Math.max(1, titanDef.atk - Math.floor(partyAtk * 0.05) + Math.floor(Math.random() * titanDef.atk * 0.2));
+  G.battle.partyHp = Math.max(0, G.battle.partyHp - dmgToParty);
+
+  blogMsg(`⚔️ Party deals ${fmt(dmgToTitan)} dmg — ${titanDef.name} strikes for ${fmt(dmgToParty)}`, 'hit-titan');
+
+  const titanIconEl = document.querySelector('.titan-icon');
+  if (titanIconEl) { titanIconEl.classList.remove('shaking'); void titanIconEl.offsetWidth; titanIconEl.classList.add('shaking'); }
+
+  // Update HP bars live without full re-render
+  const tHpEl = document.querySelector('.hp-bar-fill.titan-hp');
+  const pHpEl = document.querySelector('.hp-bar-fill.party-hp');
+  const tValEls = document.querySelectorAll('.hp-val');
+  if (tHpEl) tHpEl.style.width = (G.battle.titanHp / G.battle.titanMaxHp * 100) + '%';
+  if (pHpEl) pHpEl.style.width = (G.battle.partyHp / G.battle.partyMaxHp * 100) + '%';
+  if (tValEls[0]) tValEls[0].textContent = `${fmt(G.battle.titanHp)} / ${fmt(G.battle.titanMaxHp)}`;
+  if (tValEls[1]) tValEls[1].textContent = `${fmt(G.battle.partyHp)} / ${fmt(G.battle.partyMaxHp)}`;
+
+  if (G.battle.titanHp <= 0) {
+    G.battle.fighting = false;
+    G.battle.result = 'victory';
+    const alreadyDefeated = G.defeatedTitans.includes(G.battle.titanId);
+    if (!alreadyDefeated) {
+      G.defeatedTitans.push(G.battle.titanId);
+      G.mana += titanDef.reward;
+      G.totalMana += titanDef.reward;
+      G.dust += titanDef.dustReward;
+      blogMsg(`🏆 ${titanDef.name} defeated! +${fmt(titanDef.reward)} ⚡${titanDef.dustReward > 0 ? ` +${titanDef.dustReward} ✨` : ''}`, 'battle-end');
+      log(`⚔️ Defeated ${titanDef.name}! Earned ${fmt(titanDef.reward)} Ley Power`);
+      const ctrl = document.querySelector('.battle-controls');
+      if (ctrl) ctrl.outerHTML = `<div class="battle-victory"><div class="victory-title">✦ Victory! ✦</div><div style="color:var(--gold);font-size:0.85rem">+${fmt(titanDef.reward)} ⚡${titanDef.dustReward > 0 ? ` +${titanDef.dustReward} ✨` : ''}</div></div>`;
+    }
+    setTimeout(() => { G.battle = null; renderBattle(); }, 3000);
+  } else if (G.battle.partyHp <= 0) {
+    G.battle.fighting = false;
+    G.battle.result = 'defeat';
+    blogMsg('💀 Your party has fallen...', 'hit-player');
+    log(`⚔️ Defeated by ${titanDef.name}...`);
+    const ctrl = document.querySelector('.battle-controls');
+    if (ctrl) ctrl.outerHTML = `<div class="battle-victory"><div class="victory-title" style="color:#e06040">✦ Defeated ✦</div><div style="color:var(--text-dim);font-size:0.8rem">Your familiars fought bravely</div></div>`;
+    setTimeout(() => { G.battle = null; renderBattle(); }, 3000);
+  }
+}
+
+function blogMsg(msg, cls) {
+  const el = document.getElementById('battleLogInner');
+  if (!el) return;
+  const p = document.createElement('p');
+  if (cls) p.className = cls;
+  p.textContent = msg;
+  el.appendChild(p);
+  el.scrollTop = el.scrollHeight;
+  if (el.children.length > 30) el.firstChild.remove();
+}
+
+function togglePartyMember(fid) {
+  if (G.battle) return;
+  const idx = G.battleParty.indexOf(fid);
+  if (idx >= 0) {
+    G.battleParty.splice(idx, 1);
+  } else {
+    if (G.battleParty.length >= 6) return;
+    G.battleParty.push(fid);
+  }
+  renderBattle();
+}
+
+function renderBattle() {
+  const arena = document.getElementById('battleArena');
+
+  // Show lock message if battle hasn't been unlocked yet — but still show familiar roster
+  if (!isBattleUnlocked()) {
+    document.getElementById('battleTabs').innerHTML = '';
+    arena.innerHTML = `
+      <div style="text-align:center;padding:48px 16px;color:var(--text-dim);">
+        <div style="font-size:3rem;margin-bottom:12px;">🔒</div>
+        <div style="font-family:'Cinzel Decorative',cursive;font-size:0.9rem;color:#c07040;margin-bottom:10px;">Battles Sealed</div>
+        <div style="font-size:0.85rem;line-height:1.6;">
+          The titans stir beyond the veil, but your forces are too weak to challenge them.<br>
+          <strong style="color:var(--gold)">Summon the Satyr</strong> to unlock Titan Battles.
+        </div>
+      </div>`;
+    return;
+  }
+
+  const tabsEl = document.getElementById('battleTabs');
+  tabsEl.innerHTML = '';
+  G.allZones.forEach((zone, i) => {
+    const unlocked = G.prestigeCount >= zone.prestigeRequired;
+    const tab = document.createElement('button');
+    const defeated = zone.titans.filter(t => G.defeatedTitans.includes(t.id)).length;
+    tab.className = 'battle-tab'
+      + (G.activeBattleZone === i ? ' active' : '')
+      + (!unlocked ? ' locked-tab' : '')
+      + (zone.isPrestigeZone ? ' prestige-zone' : '');
+    const shortName = zone.name.split(' ').slice(0,2).join(' ');
+    tab.innerHTML = `<span class="btab-icon">${zone.icon}</span>${shortName}${unlocked ? ` ${defeated}/${zone.titans.length}` : ' 🔒'}`;
+    tab.onclick = () => { if (!unlocked) return; G.activeBattleZone = i; renderBattle(); };
+    tabsEl.appendChild(tab);
+  });
+
+  const zone = G.allZones[G.activeBattleZone];
+
+  if (G.prestigeCount < zone.prestigeRequired) {
+    arena.innerHTML = `<div class="battle-locked-msg"><div style="font-size:2rem">🔒</div><div style="font-family:'Cinzel Decorative',cursive;font-size:0.75rem;color:#c07040;margin:6px 0">Sealed Battlefield</div>Requires <strong style="color:var(--gold)">${zone.prestigeRequired} Prestiges</strong> to enter</div>`;
+    return;
+  }
+
+  if (G.battle) {
+    const titanDef = zone.titans.find(t => t.id === G.battle.titanId);
+    const tPct = (G.battle.titanHp / G.battle.titanMaxHp * 100).toFixed(1);
+    const pPct = (G.battle.partyHp / G.battle.partyMaxHp * 100).toFixed(1);
+    arena.innerHTML = `
+      <div class="titan-card">
+        <div class="titan-header">
+          <div class="titan-icon">${titanDef.icon}</div>
+          <div class="titan-details">
+            <div class="titan-name">${titanDef.name}</div>
+            <div class="titan-lore">${titanDef.lore}</div>
+          </div>
+        </div>
+        <div class="hp-bars">
+          <div class="hp-row">
+            <div class="hp-label">Titan HP</div>
+            <div class="hp-bar-wrap"><div class="hp-bar-fill titan-hp" style="width:${tPct}%"></div></div>
+            <div class="hp-val">${fmt(G.battle.titanHp)} / ${fmt(G.battle.titanMaxHp)}</div>
+          </div>
+          <div class="hp-row">
+            <div class="hp-label">Party HP</div>
+            <div class="hp-bar-wrap"><div class="hp-bar-fill party-hp" style="width:${pPct}%"></div></div>
+            <div class="hp-val">${fmt(G.battle.partyHp)} / ${fmt(G.battle.partyMaxHp)}</div>
+          </div>
+        </div>
+        <div class="battle-log" id="battleLogInner"></div>
+        <div class="battle-controls">
+          <button class="battle-btn fighting" disabled>⚔️ Fighting...</button>
+          <button class="battle-btn retreat" onclick="retreatBattle()">🏃 Retreat</button>
+        </div>
+      </div>`;
+    return;
+  }
+
+  // Party selector + titan list
+  let html = `
+    <div class="party-section">
+      <span class="party-label">⚔️ Battle Party (${G.battleParty.length}/6) — Power: ${fmt(getBattlePower())} · HP: ${fmt(getPartyMaxHp())}</span>
+      <div class="available-familiars">`;
+  const summoned = G.familiars.filter(f => f.level > 0);
+  if (summoned.length === 0) {
+    html += `<div style="color:var(--text-dim);font-size:0.75rem;font-style:italic">Summon familiars first to build your party</div>`;
+  } else {
+    summoned.forEach(f => {
+      const inParty = G.battleParty.includes(f.id);
+      html += `<div class="avail-fam ${inParty ? 'in-party' : ''}" onclick="togglePartyMember('${f.id}')">${f.icon} ${f.name} <span class="af-count">Lv${f.level} · ⚔️${fmt(famAtk(f))} · ❤️${fmt(famHp(f))}</span></div>`;
+    });
+  }
+  html += `</div></div>`;
+
+  zone.titans.forEach((titan, idx) => {
+    const defeated = G.defeatedTitans.includes(titan.id);
+    // Titan is available only if all previous titans in this zone are defeated
+    const prevDefeated = idx === 0 || G.defeatedTitans.includes(zone.titans[idx - 1].id);
+    const isNext = !defeated && prevDefeated;
+    const isLocked = !defeated && !prevDefeated;
+
+    if (defeated) {
+      // Show as a compact slain banner, no challenge button
+      html += `
+        <div class="titan-card" style="opacity:0.5;border-color:#3a2010;">
+          <div class="titan-header">
+            <div class="titan-icon" style="filter:grayscale(0.8) brightness(0.7)">${titan.icon}</div>
+            <div class="titan-details">
+              <div class="titan-name" style="color:#806040;">${titan.name} <span style="color:var(--gold);font-size:0.65rem">✓ Vanquished</span></div>
+              <div class="titan-lore">${titan.lore}</div>
+              <div class="titan-reward" style="color:#605040;">🏆 Reward claimed — ${fmt(titan.reward)} ⚡${titan.dustReward > 0 ? ` + ${titan.dustReward} ✨` : ''}</div>
+            </div>
+          </div>
+        </div>`;
+    } else if (isLocked) {
+      // Show as locked — must defeat previous titan
+      const prev = zone.titans[idx - 1];
+      html += `
+        <div class="titan-card" style="opacity:0.35;border-color:#2a1818;cursor:not-allowed;">
+          <div class="titan-header">
+            <div class="titan-icon" style="filter:grayscale(1) brightness(0.5)">🔒</div>
+            <div class="titan-details">
+              <div class="titan-name" style="color:#604040;">${titan.name}</div>
+              <div class="titan-lore">${titan.lore}</div>
+              <div class="titan-reward" style="color:#604030;">Defeat ${prev.name} first to unlock</div>
+              <div class="titan-reward">🏆 ${fmt(titan.reward)} ⚡${titan.dustReward > 0 ? ` + ${titan.dustReward} ✨` : ''}</div>
+            </div>
+          </div>
+        </div>`;
+    } else {
+      // isNext — this is the active challengeable titan
+      html += `
+        <div class="titan-card" style="border-color:#904030;">
+          <div class="titan-header">
+            <div class="titan-icon">${titan.icon}</div>
+            <div class="titan-details">
+              <div class="titan-name">${titan.name} <span style="font-size:0.6rem;color:#e08060;font-family:'Crimson Pro',serif;font-style:italic">Next challenger</span></div>
+              <div class="titan-lore">${titan.lore}</div>
+              <div class="titan-reward">⚔️ ${fmt(titan.atk)} ATK · 🛡️ ${fmt(titan.def)} DEF · ❤️ ${fmt(titan.maxHp)} HP</div>
+              <div class="titan-reward">🏆 ${fmt(titan.reward)} ⚡${titan.dustReward > 0 ? ` + ${titan.dustReward} ✨` : ''}</div>
+            </div>
+          </div>
+          <button class="battle-btn" onclick="startBattle('${titan.id}')" ${G.battleParty.length === 0 ? 'disabled' : ''}>
+            ⚔️ Challenge ${titan.name}
+          </button>
+        </div>`;
+    }
+  });
+
+  arena.innerHTML = html;
+}
+
+function renderBattleLoop() {
+  // Only update HP bars during active fight without full re-render (handled in tickBattle)
+}
+
+// ==================== RENDER ====================
+function renderUpgrades() {
+  const grid = document.getElementById('upgradeGrid');
+  if (!grid) return;
+
+  // Build once, then just update state
+  if (grid.children.length !== G.upgrades.length) {
+    grid.innerHTML = '';
+    G.upgrades.forEach((u, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'spell-btn';
+      btn.dataset.idx = i;
+      btn.innerHTML = `
+        <span class="s-level"></span>
+        <span class="s-icon">${u.icon}</span>
+        <span class="s-name">${u.name}</span>
+        <span class="s-cost"></span>
+        <span class="s-desc">${u.desc}</span>
+      `;
+      btn.addEventListener('click', () => buyUpgrade(i));
+      grid.appendChild(btn);
+    });
+  }
+
+  // Update state each frame
+  G.upgrades.forEach((u, i) => {
+    const btn = grid.children[i];
+    if (!btn) return;
+    const affordable = G.mana >= u.cost;
+    const maxed = u.level >= u.maxLevel;
+    btn.disabled = maxed || !affordable;
+    btn.querySelector('.s-level').textContent = maxed ? 'MAX' : `Lv${u.level}`;
+    btn.querySelector('.s-cost').textContent = maxed ? '✓' : fmt(u.cost) + ' ⚡';
+  });
+}
+
+function renderFamiliars() {
+  const tabsEl = document.getElementById('tierTabs');
+  const list = document.getElementById('familiarList');
+  if (!tabsEl || !list) return;
+
+  // Build tier tabs once, update active/locked state in place
+  if (tabsEl.children.length !== G.familiarTiers.length) {
+    tabsEl.innerHTML = '';
+    G.familiarTiers.forEach(tier => {
+      const tab = document.createElement('button');
+      tab.className = 'tier-tab';
+      tab.dataset.tierId = tier.id;
+      tab.addEventListener('click', () => {
+        G.activeFamiliarTier = tier.id;
+        list.dataset.renderedTier = '';
+        renderFamiliars();
+      });
+      tabsEl.appendChild(tab);
+    });
+  }
+  // Update tab labels and states each frame
+  G.familiarTiers.forEach((tier, i) => {
+    const tab = tabsEl.children[i];
+    if (!tab) return;
+    const tierMinPrestige = tier.familiars[0].prestigeRequired || 0;
+    const tierUnlocked = G.prestigeCount >= tierMinPrestige;
+    const owned = tier.familiars.reduce((s, f) => s + (f.level > 0 ? 1 : 0), 0);
+    const newClass = 'tier-tab' +
+      (G.activeFamiliarTier === tier.id ? ' active' : '') +
+      (!tierUnlocked ? ' tier-locked' : '');
+    const newHTML = `<span class="tab-icon">${tier.icon}</span>${tier.label}${owned > 0 ? ` (${owned})` : ''}`;
+    if (tab.className !== newClass) tab.className = newClass;
+    if (tab.innerHTML !== newHTML) tab.innerHTML = newHTML;
+  });
+
+  const activeTier = G.familiarTiers.find(t => t.id === G.activeFamiliarTier);
+  if (!activeTier) return;
+  const tierMinPrestige = activeTier.familiars[0].prestigeRequired || 0;
+
+  // Remove old tier-level lock gate — all familiars always show, locked individually
+
+  // Only rebuild list DOM when tier changes
+  if (list.dataset.renderedTier !== G.activeFamiliarTier) {
+    list.innerHTML = '';
+    activeTier.familiars.forEach(f => {
+      const globalIdx = G.familiars.indexOf(f);
+      const div = document.createElement('div');
+      div.dataset.famId = f.id;
+      div.className = 'familiar-item';
+      div.innerHTML = `
+        <div class="fam-icon" data-famicon>${f.icon}</div>
+        <div class="fam-info">
+          <div class="fam-name" data-famname>${f.name}</div>
+          <div class="fam-desc">${f.desc}</div>
+          <div class="fam-cost" data-famcost></div>
+        </div>
+        <div class="fam-action" data-famaction></div>
+      `;
+      div.addEventListener('click', () => buyFamiliar(globalIdx));
+      list.appendChild(div);
+    });
+    list.dataset.renderedTier = G.activeFamiliarTier;
+  }
+
+  // Update all familiars in place every frame
+  activeTier.familiars.forEach((f, fi) => {
+    const req = f.prestigeRequired || 0;
+    const prestigeLocked = G.prestigeCount < req;
+    const div = list.children[fi];
+    if (!div) return;
+
+    const iconEl   = div.querySelector('[data-famicon]');
+    const nameEl   = div.querySelector('[data-famname]');
+    const costEl   = div.querySelector('[data-famcost]');
+    const actionEl = div.querySelector('[data-famaction]');
+
+    if (prestigeLocked) {
+      div.className = 'familiar-item prestige-locked';
+      if (iconEl)   { iconEl.textContent = f.icon; iconEl.style.filter = 'grayscale(1) opacity(0.4)'; }
+      if (nameEl)   { nameEl.textContent = f.name; nameEl.style.color = 'var(--text-dim)'; }
+      if (costEl)   {
+        costEl.innerHTML = `<span style="color:#60a0c0">⚡ ${fmt(f.baseMps)}/s</span> · <span style="color:#c07060">⚔️ ${fmt(f.baseAtk)}</span> · <span style="color:#60a060">❤️ ${fmt(f.baseHp)}</span> · <span style="color:#804030">${fmt(f.baseCost)} ⚡ to summon</span>`;
+        costEl.style.color = '';
+      }
+      if (actionEl) { actionEl.textContent = `🔒 ${req} prest.`; actionEl.className = 'fam-action'; actionEl.style.color = '#804030'; actionEl.style.borderColor = '#4a2010'; }
+      return;
+    }
+
+    // Unlocked — normal display
+    const tier = activeTier;
+    const discount = getSkillCostDiscount(tier.id);
+    const cost = Math.floor(famCost(f) * discount);
+    const affordable = G.mana >= cost;
+    const maxed = f.level >= f.maxLevel;
+    const summoned = f.level > 0;
+
+    div.className = 'familiar-item' + (!affordable && f.level === 0 ? ' locked' : '');
+    if (iconEl)   { iconEl.textContent = f.icon; iconEl.style.filter = summoned ? '' : 'grayscale(0.6) opacity(0.7)'; }
+    if (nameEl)   {
+      nameEl.style.color = '';
+      nameEl.innerHTML = f.name + (summoned ? ` <span class="fam-level-badge">Lv${f.level}</span>` : '');
+    }
+    if (costEl) {
+      costEl.style.color = '';
+      if (maxed) {
+        costEl.innerHTML = `<span style="color:#60c080">⚡ ${fmt(famMps(f) * getSkillMultiplier(tier.id))}/s</span> · <span style="color:#c07060">⚔️ ${fmt(famAtk(f))}</span> · <span style="color:#60a060">❤️ ${fmt(famHp(f))}</span>`;
+      } else {
+        const mpsNow  = famMps(f) * getSkillMultiplier(tier.id);
+        const mpsNext = f.baseMps * Math.pow(f.upgradeMult, f.level) * getSkillMultiplier(tier.id);
+        const atkNext = Math.floor(f.baseAtk * Math.pow(f.upgradeMult, Math.max(0, f.level)));
+        const hpNext  = Math.floor(f.baseHp  * Math.pow(f.upgradeMult, Math.max(0, f.level)));
+        if (f.level === 0) {
+          costEl.innerHTML = `<span style="color:#60a0c0">⚡ ${fmt(mpsNext)}/s</span> · <span style="color:#c07060">⚔️ ${fmt(atkNext)}</span> · <span style="color:#60a060">❤️ ${fmt(hpNext)}</span> · ${fmt(cost)} ⚡`;
+        } else {
+          costEl.innerHTML = `<span style="color:#60c080">⚡ ${fmt(mpsNow)}/s</span> · <span style="color:#c07060">⚔️ ${fmt(famAtk(f))}</span> · <span style="color:#60a060">❤️ ${fmt(famHp(f))}</span> · ${fmt(cost)} ⚡`;
+        }
+      }
+    }
+    if (actionEl) {
+      if (maxed) {
+        actionEl.textContent = 'MAX';
+        actionEl.className = 'fam-action fam-max';
+      } else {
+        actionEl.textContent = f.level === 0 ? 'Summon' : `Lv${f.level}→${f.level+1}`;
+        actionEl.className = 'fam-action' + (affordable ? ' fam-can-afford' : '');
+      }
+    }
+  });
+}
+
+function renderUI() {
+  document.getElementById('manaDisplay').textContent = fmt(G.mana);
+  document.getElementById('manaRate').textContent = `+${fmt(G.manaPerSec)} ley/s`;
+  document.getElementById('dustDisplay').textContent = fmt(G.dust);
+  document.getElementById('clickPowerDisplay').textContent = fmt(G.clickPower);
+  document.getElementById('totalMana').textContent = `Total: ${fmt(G.totalMana)}`;
+
+  // Mana bar (tracks toward prestige goal)
+  const goal = 1500000 * Math.pow(5, G.prestigeCount);
+  const pct = Math.min(100, (G.mana / goal) * 100);
+  document.getElementById('manaBar').style.width = pct + '%';
+  document.getElementById('manaBarLabel').textContent = `${fmt(G.mana)} / ${fmt(goal)}`;
+
+  // Prestige
+  const pBtn = document.getElementById('prestigeBtn');
+  const pInfo = document.getElementById('prestigeInfo');
+  if (G.mana >= goal) {
+    pBtn.disabled = false;
+    pInfo.textContent = `Gain ${G.prestigeCount+1} ✨ Arcane Dust!`;
+  } else {
+    pBtn.disabled = true;
+    pInfo.textContent = `Requires ${fmt(goal)} Ley Power`;
+  }
+  // Battle tab lock state
+  const battleNav = document.getElementById('navBattle');
+  if (battleNav) {
+    const unlocked = isBattleUnlocked();
+    battleNav.classList.toggle('tab-locked', !unlocked);
+    battleNav.title = unlocked ? '' : 'Summon the Satyr to unlock';
+  }
+}
+
+function clickOrb(e) {
+  G.totalClicks++;
+  let gain = G.clickPower;
+  G.mana += gain;
+  G.totalMana += gain;
+  G.manaBarCurrent += gain;
+
+  // Float text — fall back to orb centre if coords missing
+  const orb = document.getElementById('mainOrb');
+  const rect = orb.getBoundingClientRect();
+  const x = (e && e.clientX) ? e.clientX : rect.left + rect.width / 2;
+  const y = (e && e.clientY) ? e.clientY : rect.top + rect.height / 2;
+  const ft = document.createElement('div');
+  ft.className = 'float-text';
+  ft.textContent = '+' + fmt(gain);
+  ft.style.left = (x - 20) + 'px';
+  ft.style.top  = (y - 30) + 'px';
+  document.body.appendChild(ft);
+  setTimeout(() => ft.remove(), 1000);
+
+  orb.classList.remove('clicked');
+  void orb.offsetWidth;
+  orb.classList.add('clicked');
+
+  checkAchievements();
+}
+
+function buyUpgrade(i) {
+  const u = G.upgrades[i];
+  if (G.mana < u.cost || u.level >= u.maxLevel) return;
+  G.mana -= u.cost;
+  u.level++;
+  u.cost = Math.floor(u.cost * 5);
+  u.effect(G);
+  recalcClickPower();
+  recalcMPS();
+  log(`✦ ${u.name} upgraded to level ${u.level}`);
+  renderUpgrades();
+}
+
+function buyFamiliar(i) {
+  const f = G.familiars[i];
+  if (f.level >= f.maxLevel) return;
+  const tier = G.familiarTiers.find(t => t.familiars.includes(f));
+  const discount = tier ? getSkillCostDiscount(tier.id) : 1;
+  const cost = Math.floor(famCost(f) * discount);
+  if (G.mana < cost) return;
+  G.mana -= cost;
+  const wasSummoned = f.level > 0;
+  f.level++;
+  recalcMPS();
+  recalcClickPower();
+  if (!wasSummoned) log(`🌟 ${f.name} summoned!`);
+  else log(`⬆️ ${f.name} upgraded to level ${f.level}!`);
+  checkAchievements();
+  // Force familiar list rebuild on next render
+  const list = document.getElementById('familiarList');
+  if (list) list.dataset.renderedTier = '';
+}
+
+function prestige() {
+  const goal = 1500000 * Math.pow(5, G.prestigeCount);
+  if (G.mana < goal) return;
+  G.prestigeCount++;
+  G.dust += G.prestigeCount;
+  G.mana = 0;
+  G.totalMana = 0;
+  G.totalClicks = 0;
+  G.manaPerSec = 0;
+  G._familiarMult = 1;
+  G.upgrades.forEach(u => { u.level = 0; u.cost = u.baseCost || u.cost; });
+  G.upgrades.forEach(u => u.baseCost = u.baseCost || u.cost);
+  G.familiars.forEach(f => { f.level = 0; });
+  G.clickPower = 1 + G.prestigeCount * 2;
+  log(`🌟 Age ${G.prestigeCount} begins! Arcane Dust: ${G.dust}`);
+  checkAchievements();
+  renderUpgrades();
+  renderFamiliars();
+}
+
+// ==================== LOG ====================
+function log(msg) {
+  ['log', 'logFamiliar'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const p = document.createElement('p');
+    p.className = 'new';
+    p.textContent = msg;
+    el.prepend(p);
+    if (el.children.length > 8) el.lastChild.remove();
+  });
+}
+
+// ==================== ACHIEVEMENTS ====================
+function checkAchievements() {
+  achievementDefs.forEach(def => {
+    if (!G.achievements.includes(def.id) && def.check(G)) {
+      G.achievements.push(def.id);
+      showToast(`🏆 ${def.name}`, def.desc);
+      log(`📜 Achievement: ${def.name}`);
+    }
+  });
+}
+
+function showToast(title, desc) {
+  const t = document.createElement('div');
+  t.className = 'achievement-toast';
+  t.innerHTML = `<strong>${title}</strong><br><span style="font-size:0.75rem;font-family:'Crimson Pro',serif;color:var(--text-dim)">${desc}</span>`;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3100);
+}
+
+// ==================== PARTICLES ====================
+(function() {
+  const canvas = document.getElementById('particles');
+  const ctx = canvas.getContext('2d');
+  let particles = [];
+  function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+  resize();
+  window.addEventListener('resize', resize);
+  for (let i = 0; i < 60; i++) {
+    particles.push({
+      x: Math.random() * window.innerWidth,
+      y: Math.random() * window.innerHeight,
+      r: Math.random() * 1.5 + 0.3,
+      vx: (Math.random()-0.5)*0.3,
+      vy: -Math.random()*0.4 - 0.1,
+      alpha: Math.random() * 0.6 + 0.2,
+      hue: Math.random() > 0.5 ? 280 : 200,
+    });
+  }
+  function draw() {
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    particles.forEach(p => {
+      p.x += p.vx; p.y += p.vy;
+      if (p.y < -5) { p.y = canvas.height+5; p.x = Math.random()*canvas.width; }
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+      ctx.fillStyle = `hsla(${p.hue},80%,70%,${p.alpha})`;
+      ctx.fill();
+    });
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+// ==================== AD BOOST ====================
+
+let adWatchTimer = null;
+let adWatchElapsed = 0;
+let adCurrentType = null; // 'click' | 'hp' | 'mp'
+const AD_WATCH_DURATION = 30;
+
+const AD_BOOST_CONFIGS = {
+  click: {
+    title: '📺 Channelling the Ley Grid...', sub: 'Observe the sacred transmission to receive power',
+    claimLabel: '⚡ Claim Ley Surge!', toastIcon: '⚡', toastName: 'Ley Surge',
+    desc: '3× ley/click', logMsg: n => `⚡ Ley Surge activated! ${n * 10} min of 3× click power`,
+    getRemaining: () => G.adBoostRemaining,
+    setRemaining: v => { G.adBoostRemaining = v; },
+    getMax: () => G.AD_BOOST_MAX,
+    getPerAd: () => G.AD_BOOST_PER_AD,
+    onClaim: () => { recalcClickPower(); renderAdBoost(); },
+    btnId: 'adboostBtn', ringId: 'adboostRing', statusId: 'adboostStatus',
+    stackId: 'adboostStack', pipsId: 'adboostPips', iconId: 'adboostCenterIcon',
+    inactiveStack: 'Each ad = +10 min · Max 2 hours',
+    activeStack: rem => `${Math.ceil(rem / 60)} min left · 3× ley/click`,
+    ringColor: '#80ff90', dimColor: '#406050',
+  },
+  hp: {
+    title: '📺 Summoning Aegis Wards...', sub: 'The sacred barrier charges with ancient power',
+    claimLabel: '❤️ Claim Aegis Surge!', toastIcon: '❤️', toastName: 'Aegis Surge',
+    desc: '3× party HP', logMsg: n => `❤️ Aegis Surge! ${n * 10} min of 3× party HP`,
+    getRemaining: () => G.famHpBoostRemaining,
+    setRemaining: v => { G.famHpBoostRemaining = v; },
+    getMax: () => G.FAM_HP_BOOST_MAX,
+    getPerAd: () => G.FAM_HP_BOOST_PER_AD,
+    onClaim: () => { renderFamBoosts(); },
+    btnId: 'hpBoostBtn', ringId: 'hpBoostRing', statusId: 'hpBoostStatus',
+    stackId: 'hpBoostStack', pipsId: 'hpBoostPips', iconId: 'hpBoostIcon',
+    inactiveStack: 'Each ad = +10 min · 3× party HP',
+    activeStack: rem => `${Math.ceil(rem / 60)} min left · 3× party HP`,
+    ringColor: '#c060e0', dimColor: '#502060',
+  },
+  mp: {
+    title: '📺 Opening the Ley Tide...', sub: 'The flow of ley power swells with the tide',
+    claimLabel: '💧 Claim Ley Tide!', toastIcon: '💧', toastName: 'Ley Tide',
+    desc: '2× familiar ley/s', logMsg: n => `💧 Ley Tide! ${n * 10} min of 2× familiar ley/s`,
+    getRemaining: () => G.famMpBoostRemaining,
+    setRemaining: v => { G.famMpBoostRemaining = v; },
+    getMax: () => G.FAM_MP_BOOST_MAX,
+    getPerAd: () => G.FAM_MP_BOOST_PER_AD,
+    onClaim: () => { recalcMPS(); renderFamBoosts(); },
+    btnId: 'mpBoostBtn', ringId: 'mpBoostRing', statusId: 'mpBoostStatus',
+    stackId: 'mpBoostStack', pipsId: 'mpBoostPips', iconId: 'mpBoostIcon',
+    inactiveStack: 'Each ad = +10 min · 2× familiar ley/s',
+    activeStack: rem => `${Math.ceil(rem / 60)} min left · 2× ley/s`,
+    ringColor: '#4090e0', dimColor: '#203060',
+  },
+};
+
+function watchAd() { openAdModal('click'); }
+function watchFamAd(type) { openAdModal(type); }
+
+function openAdModal(type) {
+  const cfg = AD_BOOST_CONFIGS[type];
+  if (cfg.getRemaining() >= cfg.getMax()) {
+    showToast(`${cfg.toastIcon} Already at max!`, `${cfg.toastName} is fully charged (2 hours)`);
+    return;
+  }
+  adCurrentType = type;
+  adWatchElapsed = 0;
+
+  document.getElementById('adModalTitle').textContent = cfg.title;
+  document.getElementById('adModalSub').textContent = cfg.sub;
+  document.getElementById('adProgressFill').style.width = '0%';
+  document.getElementById('adTimerText').textContent = `0:${String(AD_WATCH_DURATION).padStart(2,'0')}`;
+  document.getElementById('adSkipHint').textContent = 'Please wait...';
+  document.getElementById('adCloseBtn').textContent = cfg.claimLabel;
+  document.getElementById('adCloseBtn').classList.remove('visible');
+  document.getElementById('adModalOverlay').style.display = 'flex';
+  document.getElementById(cfg.btnId).disabled = true;
+
+  adWatchTimer = setInterval(() => {
+    adWatchElapsed++;
+    const pct = (adWatchElapsed / AD_WATCH_DURATION) * 100;
+    const remaining = AD_WATCH_DURATION - adWatchElapsed;
+    document.getElementById('adProgressFill').style.width = pct + '%';
+    document.getElementById('adTimerText').textContent = `0:${String(remaining).padStart(2,'0')}`;
+    if (adWatchElapsed >= AD_WATCH_DURATION) {
+      clearInterval(adWatchTimer);
+      adWatchTimer = null;
+      document.getElementById('adSkipHint').textContent = '✓ Ad complete!';
+      document.getElementById('adCloseBtn').classList.add('visible');
+    }
+  }, 1000);
+}
+
+function claimAdReward() {
+  if (adWatchTimer || !adCurrentType) return;
+  const cfg = AD_BOOST_CONFIGS[adCurrentType];
+  document.getElementById('adModalOverlay').style.display = 'none';
+  document.getElementById(cfg.btnId).disabled = false;
+
+  const newVal = Math.min(cfg.getMax(), cfg.getRemaining() + cfg.getPerAd());
+  cfg.setRemaining(newVal);
+  const stacks = Math.round(newVal / cfg.getPerAd());
+  log(cfg.logMsg(stacks));
+  showToast(`${cfg.toastIcon} ${cfg.toastName}!`, `+10 min — ${stacks * 10} min total`);
+  cfg.onClaim();
+  adCurrentType = null;
+}
+
+function tickAdBoost(dt) {
+  // Click boost
+  if (G.adBoostRemaining > 0) {
+    G.adBoostRemaining = Math.max(0, G.adBoostRemaining - dt);
+    if (G.adBoostRemaining <= 0) {
+      log('⚡ Ley Surge has faded...'); showToast('⚡ Ley Surge ended', 'Watch an ad to recharge');
+      recalcClickPower();
+    }
+    renderAdBoost();
+  }
+  // HP boost
+  if (G.famHpBoostRemaining > 0) {
+    G.famHpBoostRemaining = Math.max(0, G.famHpBoostRemaining - dt);
+    if (G.famHpBoostRemaining <= 0) {
+      log('❤️ Aegis Surge has faded...');
+      showToast('❤️ Aegis Surge ended', 'Watch an ad to recharge');
+    }
+    renderFamBoosts();
+  }
+  // MP boost
+  if (G.famMpBoostRemaining > 0) {
+    G.famMpBoostRemaining = Math.max(0, G.famMpBoostRemaining - dt);
+    if (G.famMpBoostRemaining <= 0) {
+      log('💧 Ley Tide has faded...');
+      showToast('💧 Ley Tide ended', 'Watch an ad to recharge');
+      recalcMPS();
+    }
+    renderFamBoosts();
+  }
+}
+
+function renderBoostWidget(cfg) {
+  const remaining = cfg.getRemaining();
+  const perAd = cfg.getPerAd();
+  const maxStacks = cfg.getMax() / perAd; // 12
+  const activeStacks = Math.floor(remaining / perAd);
+  const partial = remaining % perAd;
+  const active = remaining > 0;
+
+  const statusEl = document.getElementById(cfg.statusId);
+  const stackEl  = document.getElementById(cfg.stackId);
+  const btnEl    = document.getElementById(cfg.btnId);
+  const ringEl   = document.getElementById(cfg.ringId);
+  const iconEl   = document.getElementById(cfg.iconId);
+  if (!statusEl) return;
+
+  if (active) {
+    const mins = Math.floor(remaining / 60);
+    const secs = Math.floor(remaining % 60);
+    statusEl.textContent = `ACTIVE — ${mins}:${String(secs).padStart(2,'0')} remaining`;
+    statusEl.style.color = cfg.ringColor;
+    stackEl.textContent = cfg.activeStack(remaining);
+    iconEl.style.color = cfg.ringColor;
+  } else {
+    statusEl.textContent = 'Inactive — watch an ad to activate';
+    statusEl.style.color = '';
+    stackEl.textContent = cfg.inactiveStack;
+    iconEl.style.color = cfg.dimColor;
+  }
+
+  // Ring
+  const circumference = 2 * Math.PI * 24;
+  const ringPct = active ? (partial > 0 ? partial / perAd : 1.0) : 0;
+  ringEl.style.strokeDashoffset = circumference * (1 - ringPct);
+  ringEl.className = 'adboost-ring-fill' + (active ? ' active' : '');
+  ringEl.style.stroke = active ? cfg.ringColor : cfg.dimColor;
+
+  // Pips
+  const pipsEl = document.getElementById(cfg.pipsId);
+  if (pipsEl) {
+    pipsEl.innerHTML = '';
+    for (let i = 0; i < maxStacks; i++) {
+      const pip = document.createElement('div');
+      const isPartial = i === activeStacks && partial > 0 && active;
+      pip.className = 'adboost-pip' + (i < activeStacks ? ' filled' : '') + (isPartial ? ' active-pip' : '');
+      pip.style.setProperty('--pip-color', cfg.ringColor);
+      if (i < activeStacks) pip.style.background = cfg.ringColor;
+      if (isPartial) { pip.style.background = cfg.ringColor; pip.style.boxShadow = `0 0 8px ${cfg.ringColor}80`; }
+      pipsEl.appendChild(pip);
+    }
+  }
+
+  // Button
+  const isMaxed = remaining >= cfg.getMax();
+  btnEl.disabled = isMaxed;
+  if (isMaxed) btnEl.innerHTML = `✓ Max Charged<br><span style="font-size:0.58rem;opacity:0.75">2 hours stacked</span>`;
+  else btnEl.innerHTML = `▶ Watch Ad<br><span style="font-size:0.58rem;opacity:0.75">+10 min boost</span>`;
+}
+
+function renderAdBoost() { renderBoostWidget(AD_BOOST_CONFIGS.click); }
+function renderFamBoosts() {
+  renderBoostWidget(AD_BOOST_CONFIGS.hp);
+  renderBoostWidget(AD_BOOST_CONFIGS.mp);
+}
+
+// ==================== GAME LOOP ====================
+let lastTick = Date.now();
+function gameLoop() {
+  try {
+    const now = Date.now();
+    const dt = (now - lastTick) / 1000;
+    lastTick = now;
+
+    if (G.manaPerSec > 0) {
+      const gained = G.manaPerSec * dt;
+      G.mana += gained;
+      G.totalMana += gained;
+    }
+
+    updateAutoRing(dt);
+    tickBattle(dt);
+    tickAdBoost(dt);
+    recalcClickPower();
+    renderUI();
+    renderUpgrades();
+    renderFamiliars();
+    renderAutoUpgrades();
+    if (document.getElementById('tabBattle') && document.getElementById('tabBattle').style.display !== 'none' && !G.battle) {
+      renderBattle();
+    }
+  } catch(err) {
+    console.error('Game loop error:', err);
+  }
+  requestAnimationFrame(gameLoop);
+}
+
+// ==================== INIT ====================
+document.getElementById('mainOrb').addEventListener('click', clickOrb);
+document.getElementById('prestigeBtn').addEventListener('click', prestige);
+document.getElementById('autoToggle').addEventListener('click', () => {
+  const btn = document.getElementById('autoToggle');
+  if (!G.autoUnlocked) {
+    if (G.mana < 250) {
+      showToast('⚠️ Not enough Ley Power', 'Need 250 ⚡ to unlock Arcane Pulse');
+      return;
+    }
+    G.mana -= 250;
+    G.autoUnlocked = true;
+    btn.textContent = 'Enable';
+    log('⚡ Arcane Pulse unlocked!');
+    return;
+  }
+  G.autoClick = !G.autoClick;
+  G.autoTimer = 0;
+  if (G.autoClick) {
+    btn.textContent = 'Disable';
+    btn.classList.add('active');
+    log('⚡ Arcane Pulse activated!');
+  } else {
+    btn.textContent = 'Enable';
+    btn.classList.remove('active');
+    log('⏸ Arcane Pulse paused.');
+  }
+});
+
+// Store base costs
+G.upgrades.forEach(u => u.baseCost = u.cost);
+
+renderUpgrades();
+renderFamiliars();
+renderAutoUpgrades();
+renderBattle();
+renderSkillTree();
+renderAdBoost();
+renderFamBoosts();
+gameLoop();
+</script>
+</body>
+</html>
