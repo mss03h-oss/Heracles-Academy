@@ -1096,7 +1096,7 @@
       </div>
       <div>
         <div class="orb-label">The Ley Lines</div>
-        <div class="orb-sub">Click to channel Ley Power</div>
+        <div class="orb-sub" id="orbSub">Click to channel Ley Power</div>
       </div>
       <div style="width:100%; max-width:300px;">
         <div style="display:flex;justify-content:space-between;font-size:0.72rem;color:var(--text-dim);margin-bottom:4px;">
@@ -1300,12 +1300,12 @@ const G = {
 
 
   upgrades: [
-    { id:'focus',    name:'Focus Crystal', icon:'💠', desc:'+50% click power',          cost:200,   level:0, maxLevel:8, effect: g => g.clickPower *= 1.5 },
-    { id:'leyline',  name:'Ley Line Tap',  icon:'⚡', desc:'+3 ley/s',                  cost:500,   level:0, maxLevel:8, effect: g => g.manaPerSec += 3 },
-    { id:'runes',    name:'Rune Scribe',   icon:'🪬', desc:'Familiars +50% ley/s',       cost:2000,  level:0, maxLevel:5, effect: g => { g._familiarMult = (g._familiarMult||1)*1.5; recalcMPS(); } },
-    { id:'conduit',  name:'Mana Conduit',  icon:'🔮', desc:'+10% of ley/s added to click',cost:8000, level:0, maxLevel:6, effect: () => {} },
-    { id:'sigil',    name:'Arcane Sigil',  icon:'✴️', desc:'+5% familiar ATK & HP',    cost:25000, level:0, maxLevel:5, effect: () => {} },
-    { id:'grimoire', name:'Elder Grimoire',icon:'📖', desc:'Titans drop +25% ley power',  cost:100000,level:0, maxLevel:5, effect: () => {} },
+    { id:'focus',    name:'Focus Crystal', icon:'💠', desc:'×1.5 click power per level',          cost:200,   level:0, maxLevel:8, effect: () => {} },
+    { id:'leyline',  name:'Ley Line Tap',  icon:'⚡', desc:'×1.5 ley/s per level (base 3)',        cost:500,   level:0, maxLevel:8, effect: () => { recalcMPS(); } },
+    { id:'runes',    name:'Rune Scribe',   icon:'🪬', desc:'×1.5 familiar ley/s per level',        cost:2000,  level:0, maxLevel:5, effect: g => { g._familiarMult = Math.pow(1.5, g.upgrades.find(u=>u.id==='runes').level); recalcMPS(); } },
+    { id:'conduit',  name:'Mana Conduit',  icon:'🔮', desc:'×1.5 ley/s-to-click bonus per level',  cost:8000,  level:0, maxLevel:6, effect: () => {} },
+    { id:'sigil',    name:'Arcane Sigil',  icon:'✴️', desc:'×1.05 familiar ATK & HP per level',   cost:25000, level:0, maxLevel:5, effect: () => {} },
+    { id:'grimoire', name:'Elder Grimoire',icon:'📖', desc:'×1.25 titan ley drops per level',      cost:100000,level:0, maxLevel:5, effect: () => {} },
   ],
 
   familiarTiers: [
@@ -1622,13 +1622,13 @@ function famMps(f) {
 function famAtk(f) {
   const base = f.level === 0 ? f.baseAtk : Math.floor(f.baseAtk * Math.pow(f.upgradeMult, f.level - 1));
   const sigil = G.upgrades.find(u=>u.id==='sigil');
-  return Math.floor(base * (1 + (sigil ? sigil.level * 0.05 : 0)));
+  return Math.floor(base * Math.pow(1.05, sigil ? sigil.level : 0));
 }
 // Current hp at f.level
 function famHp(f) {
   const base = f.level === 0 ? f.baseHp : Math.floor(f.baseHp * Math.pow(f.upgradeMult, f.level - 1));
   const sigil = G.upgrades.find(u=>u.id==='sigil');
-  return Math.floor(base * (1 + (sigil ? sigil.level * 0.05 : 0)));
+  return Math.floor(base * Math.pow(1.05, sigil ? sigil.level : 0));
 }
 // Label for next action
 function famAction(f) {
@@ -1638,7 +1638,8 @@ function famAction(f) {
 }
 
 function recalcMPS() {
-  const base = G.upgrades.find(u=>u.id==='leyline').level * 3;
+  const leylineLevel = G.upgrades.find(u=>u.id==='leyline').level;
+  const base = leylineLevel === 0 ? 0 : 3 * (Math.pow(1.5, leylineLevel) - 1) / 0.5;
   let totalFamMPS = 0;
   G.familiarTiers.forEach(tier => {
     const skillMult = getSkillMultiplier(tier.id);
@@ -1653,11 +1654,11 @@ function recalcMPS() {
 function recalcClickPower() {
   let cp = 1 + G.prestigeCount * 2;
   cp *= Math.pow(1.5, G.upgrades.find(u=>u.id==='focus').level);
-  // +0.01 per 10 clicks (resets on prestige)
-  cp += Math.floor(G.totalClicks / 10) * 0.01;
-  // Mana Conduit: each level adds 10% of ley/s to click power
+  // +2% multiplicative per 10 clicks (stacks with all other multipliers)
+  cp *= Math.pow(1.02, Math.floor(G.totalClicks / 10));
+  // Mana Conduit: each level geometrically scales ley/s-to-click bonus (×1.5 per level)
   const conduit = G.upgrades.find(u=>u.id==='conduit');
-  if (conduit.level > 0) cp += G.manaPerSec * 0.10 * conduit.level;
+  if (conduit.level > 0) cp += G.manaPerSec * (Math.pow(1.5, conduit.level) - 1);
   G.clickPower = cp;
   // Ad boost multiplier
   if (G.adBoostRemaining > 0) G.clickPower *= G.AD_BOOST_MULT;
@@ -2083,7 +2084,7 @@ function tickBattle(dt) {
     if (!alreadyDefeated) {
       G.defeatedTitans.push(G.battle.titanId);
       const grimoire = G.upgrades.find(u=>u.id==='grimoire');
-      const rewardMult = 1 + (grimoire ? grimoire.level * 0.25 : 0);
+      const rewardMult = Math.pow(1.25, grimoire ? grimoire.level : 0);
       const reward = Math.floor(titanDef.reward * rewardMult);
       G.mana += reward;
       G.totalMana += reward;
@@ -2442,7 +2443,7 @@ function renderFamiliars() {
           costEl.innerHTML = `<span style="color:#60a0c0">⚡ ${fmt(mpsNext)}/s</span> · <span style="color:#c07060">⚔️ ${fmt(atkNext)}</span> · <span style="color:#60a060">❤️ ${fmt(hpNext)}</span><br><span style="color:var(--text-dim)">Cost: ${fmt(cost)} ⚡</span>`;
         } else {
           const sigil = G.upgrades.find(u=>u.id==='sigil');
-          const sigilMult = 1 + (sigil ? sigil.level * 0.05 : 0);
+          const sigilMult = Math.pow(1.05, sigil ? sigil.level : 0);
           const atkNow     = famAtk(f);
           const hpNow      = famHp(f);
           const atkNextVal = Math.floor(atkNext * sigilMult);
@@ -2474,6 +2475,17 @@ function renderUI() {
   document.getElementById('clickPowerDisplay').textContent = fmt(G.clickPower);
   document.getElementById('totalMana').textContent = `Total: ${fmt(G.totalMana)}`;
 
+  // Update orb sub-label with click bonus
+  const orbSub = document.getElementById('orbSub');
+  if (orbSub) {
+    const clickTiers = Math.floor(G.totalClicks / 10);
+    if (clickTiers > 0) {
+      const bonusPct = (Math.pow(1.02, clickTiers) * 100 - 100).toFixed(1);
+      orbSub.textContent = `Channel Ley Power · +${bonusPct}% click bonus`;
+    } else {
+      orbSub.textContent = 'Click to channel Ley Power';
+    }
+  }
   // Mana bar (tracks toward prestige goal)
   const goal = 33600000000 * Math.pow(15, G.prestigeCount);
   const pct = Math.min(100, (G.mana / goal) * 100);
@@ -2978,7 +2990,7 @@ function applySaveData(data) {
   // Recalc derived state
   G._familiarMult = 1;
   G.upgrades.filter(u => u.id === 'runes').forEach(u => {
-    for (let i = 0; i < u.level; i++) G._familiarMult *= 1.5;
+    G._familiarMult = Math.pow(1.5, u.level);
   });
   recalcMPS();
   recalcClickPower();
