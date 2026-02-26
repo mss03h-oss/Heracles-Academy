@@ -63,6 +63,18 @@
   }
   header p { color: var(--text-dim); font-style: italic; font-size: 0.95rem; margin-top: 4px; }
 
+  .save-bar {
+    display: flex; align-items: center; justify-content: center; flex-wrap: wrap;
+    gap: 6px; margin-top: 10px;
+  }
+  .save-btn {
+    background: var(--bg3); border: 1px solid var(--border); color: var(--text-dim);
+    font-family: 'Crimson Pro', serif; font-size: 0.78rem; padding: 3px 10px;
+    border-radius: 4px; cursor: pointer; transition: border-color 0.2s, color 0.2s;
+  }
+  .save-btn:hover { border-color: var(--gold); color: var(--gold); }
+  .save-btn-danger:hover { border-color: #c04040 !important; color: #c04040 !important; }
+
   /* Resources bar */
   .resources {
     grid-column: 1 / -1;
@@ -1018,6 +1030,14 @@
   <header>
     <h1>✦ Heracles' Academy ✦</h1>
     <p>Channel the ley lines. Summon your familiars. Ascend.</p>
+    <div class="save-bar">
+      <button class="save-btn" onclick="saveGame()">💾 Save</button>
+      <button class="save-btn" onclick="loadGame()">📂 Load</button>
+      <button class="save-btn" onclick="exportSave()">📤 Export</button>
+      <button class="save-btn" onclick="importSavePrompt()">📥 Import</button>
+      <button class="save-btn save-btn-danger" onclick="deleteSave()">🗑 Reset</button>
+      <span id="saveStatus" style="font-size:0.75rem;color:var(--text-dim);margin-left:8px;"></span>
+    </div>
   </header>
 
   <!-- Resources -->
@@ -2904,6 +2924,175 @@ document.getElementById('autoToggle').addEventListener('click', () => {
     log('⏸ Arcane Pulse paused.');
   }
 });
+
+// ─── SAVE / LOAD ────────────────────────────────────────────────────────────
+
+const SAVE_KEY = 'heracles_academy_save';
+
+function buildSaveData() {
+  return {
+    version: 1,
+    mana: G.mana,
+    totalMana: G.totalMana,
+    totalClicks: G.totalClicks,
+    dust: G.dust,
+    prestigeCount: G.prestigeCount,
+    defeatedTitans: G.defeatedTitans,
+    battleParty: G.battleParty,
+    activeBattleZone: G.activeBattleZone,
+    unlockedSkills: G.unlockedSkills,
+    upgrades: G.upgrades.map(u => ({ id: u.id, level: u.level })),
+    autoUpgrades: G.autoUpgrades.map(u => ({ id: u.id, purchased: u.purchased })),
+    familiars: G.familiars.map(f => ({ id: f.id, level: f.level, baseMps: f.baseMps })),
+    savedAt: Date.now(),
+  };
+}
+
+function applySaveData(data) {
+  if (!data || data.version !== 1) return false;
+  G.mana            = data.mana ?? 0;
+  G.totalMana       = data.totalMana ?? 0;
+  G.totalClicks     = data.totalClicks ?? 0;
+  G.dust            = data.dust ?? 0;
+  G.prestigeCount   = data.prestigeCount ?? 0;
+  G.defeatedTitans  = data.defeatedTitans ?? [];
+  G.battleParty     = data.battleParty ?? [];
+  G.activeBattleZone= data.activeBattleZone ?? 0;
+  G.unlockedSkills  = data.unlockedSkills ?? [];
+
+  (data.upgrades || []).forEach(saved => {
+    const u = G.upgrades.find(x => x.id === saved.id);
+    if (u) u.level = saved.level ?? 0;
+  });
+
+  (data.autoUpgrades || []).forEach(saved => {
+    const u = G.autoUpgrades.find(x => x.id === saved.id);
+    if (u) u.purchased = saved.purchased ?? false;
+  });
+
+  (data.familiars || []).forEach(saved => {
+    const f = G.familiars.find(x => x.id === saved.id);
+    if (f) { f.level = saved.level ?? 0; if (saved.baseMps != null) f.baseMps = saved.baseMps; }
+  });
+
+  // Recalc derived state
+  G._familiarMult = 1;
+  G.upgrades.filter(u => u.id === 'runes').forEach(u => {
+    for (let i = 0; i < u.level; i++) G._familiarMult *= 1.5;
+  });
+  recalcMPS();
+  recalcClickPower();
+  G.autoInterval = calcAutoInterval();
+  G.autoTimer = 0;
+  return true;
+}
+
+function saveGame() {
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify(buildSaveData()));
+    setSaveStatus('✓ Saved!', '#60c080');
+  } catch(e) {
+    setSaveStatus('✗ Save failed', '#c04040');
+  }
+}
+
+function loadGame() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) { setSaveStatus('No save found', '#c07040'); return; }
+    const ok = applySaveData(JSON.parse(raw));
+    if (ok) {
+      refreshAllUI();
+      setSaveStatus('✓ Loaded!', '#60c080');
+    } else {
+      setSaveStatus('✗ Save incompatible', '#c04040');
+    }
+  } catch(e) {
+    setSaveStatus('✗ Load failed', '#c04040');
+  }
+}
+
+function exportSave() {
+  const json = JSON.stringify(buildSaveData());
+  const b64  = btoa(json);
+  const el   = document.createElement('textarea');
+  el.value   = b64;
+  el.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:600px;max-width:90vw;height:120px;z-index:9999;background:#1a1018;color:#e8d8c0;border:1px solid #f0c060;padding:10px;font-size:0.75rem;border-radius:6px;';
+  el.setAttribute('readonly','');
+  document.body.appendChild(el);
+  el.select();
+  document.execCommand('copy');
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:#00000080;z-index:9998;';
+  document.body.appendChild(overlay);
+  const msg = document.createElement('div');
+  msg.style.cssText = 'position:fixed;top:calc(50% + 70px);left:50%;transform:translateX(-50%);color:#f0c060;font-size:0.8rem;z-index:9999;';
+  msg.textContent = 'Save code copied to clipboard — click anywhere to close';
+  document.body.appendChild(msg);
+  const cleanup = () => { el.remove(); overlay.remove(); msg.remove(); document.removeEventListener('click', cleanup); };
+  setTimeout(() => document.addEventListener('click', cleanup), 100);
+  setSaveStatus('✓ Exported!', '#60c080');
+}
+
+function importSavePrompt() {
+  const b64 = prompt('Paste your save code:');
+  if (!b64) return;
+  try {
+    const ok = applySaveData(JSON.parse(atob(b64.trim())));
+    if (ok) {
+      localStorage.setItem(SAVE_KEY, JSON.stringify(buildSaveData()));
+      refreshAllUI();
+      setSaveStatus('✓ Imported!', '#60c080');
+    } else {
+      setSaveStatus('✗ Invalid save', '#c04040');
+    }
+  } catch(e) {
+    setSaveStatus('✗ Import failed', '#c04040');
+  }
+}
+
+function deleteSave() {
+  if (!confirm('Delete all save data and reset the game? This cannot be undone.')) return;
+  localStorage.removeItem(SAVE_KEY);
+  location.reload();
+}
+
+function setSaveStatus(msg, color) {
+  const el = document.getElementById('saveStatus');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.color = color;
+  clearTimeout(el._t);
+  el._t = setTimeout(() => { el.textContent = ''; }, 3000);
+}
+
+function refreshAllUI() {
+  renderUpgrades();
+  renderFamiliars();
+  renderAutoUpgrades();
+  renderBattle();
+  renderSkillTree();
+  renderAdBoost();
+  renderFamBoosts();
+  const list = document.getElementById('familiarList');
+  if (list) list.dataset.renderedTier = '';
+}
+
+// Auto-save every 60 seconds
+setInterval(() => {
+  saveGame();
+  setSaveStatus('✓ Auto-saved', '#6090a0');
+}, 60000);
+
+// Auto-load on startup
+(function() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (raw) applySaveData(JSON.parse(raw));
+  } catch(e) {}
+})();
+
+// ─── END SAVE / LOAD ────────────────────────────────────────────────────────
 
 // Store base costs
 G.upgrades.forEach(u => u.baseCost = u.cost);
