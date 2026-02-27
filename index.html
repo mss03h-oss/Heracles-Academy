@@ -855,10 +855,14 @@
     <!-- ===== SKILL TREE TAB ===== -->
     <div id="pane-skilltree" class="tab-pane">
       <div class="pane-title">Skill Trees</div>
-      <div class="pane-subtitle">Three independent skill trees — Creatures, Heroes, and Gods. Earn Skill Points from milestones.</div>
-      <div style="display:flex;gap:16px;margin-bottom:16px;align-items:center">
-        <div style="font-family:'Cinzel',serif;font-size:12px;color:var(--gold)">Skill Points Available: <span id="sp-display" style="color:var(--gold-light)">0</span></div>
-        <div style="font-size:12px;color:var(--marble-dim)">Hover nodes for details. Click to purchase.</div>
+      <div style="display:flex;gap:20px;margin-bottom:14px;align-items:center;flex-wrap:wrap">
+        <div style="font-family:'Cinzel',serif;font-size:12px;color:var(--gold)">Arcane Dust: <span id="sp-display" style="color:var(--gold-light)">0</span></div>
+        <div style="font-size:11px;color:var(--marble-dim)">Hover nodes for details · Click to purchase</div>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:18px;">
+        <button class="skill-sub-tab active" data-skilltree="creature">🐾 Creatures</button>
+        <button class="skill-sub-tab" data-skilltree="hero">⚔️ Heroes</button>
+        <button class="skill-sub-tab" data-skilltree="god">✨ Gods</button>
       </div>
       <div class="skill-tree-wrap">
         <div class="skill-tree" id="skill-tree"></div>
@@ -879,7 +883,7 @@ const G = {
   dust: 0,
   prestiges: 0, divineMultiplier: 1, selectedZone: 1,
   skillPoints: 0, totalSkillPoints: 0,
-  tick: 0, currentTab: 'click', totalClicks: 0,
+  tick: 0, currentTab: 'click', totalClicks: 0, activeSkillTree: 'creature',
 };
 
 
@@ -950,8 +954,8 @@ const ARCANE_UPGRADES = [
   },
   {
     id:'au6', name:"Titan's Tribute", icon:'💎',
-    desc:'Titans drop +25% Ley Power per level.',
-    effect:'titanLeyDrop0.25_per_level',
+    desc:'Titan rewards include Ley/s x1.25 per level.',
+    effect:'titanFpsReward1.25_per_level',
     maxLevel:8, level:0,
     baseCost:5, costMult:6,
     currency:'dust',
@@ -960,11 +964,12 @@ const ARCANE_UPGRADES = [
 ];
 
 function arcaneUpgradeCost(au) {
-  return Math.floor(au.baseCost * Math.pow(au.costMult, au.level));
+  if (au.id === 'au6') return 10 * (au.level + 1);
+  return Math.floor(au.baseCost * Math.pow(100, au.level));
 }
 
 function arcaneUpgradeMults() {
-  const r = { clickMult:1, fpsFlat:0, summonFpsMult:1, fpsToClickPct:0, summonCombat:1, titanLeyMult:1 };
+  const r = { clickMult:1, fpsFlat:0, summonFpsMult:1, fpsToClickPct:0, summonCombat:1, titanLeyMult:1, titanDustFlat:0, titanFpsReward:1 };
   ARCANE_UPGRADES.forEach(au => {
     if (au.level === 0) return;
     if (au.effect === 'clickMult0.5_per_level')      r.clickMult      += 0.5 * au.level;
@@ -972,7 +977,7 @@ function arcaneUpgradeMults() {
     if (au.effect === 'summonFpsMult0.5_per_level')   r.summonFpsMult  += 0.5 * au.level;
     if (au.effect === 'fpsToClick0.1_per_level')      r.fpsToClickPct  += 0.1 * au.level;
     if (au.effect === 'summonCombat0.05_per_level')   r.summonCombat   += 0.05* au.level;
-    if (au.effect === 'titanLeyDrop0.25_per_level')   r.titanLeyMult   += 0.25* au.level;
+    if (au.effect === 'titanFpsReward1.25_per_level')  r.titanFpsReward  = Math.pow(1.25, au.level);
   });
   return r;
 }
@@ -1009,13 +1014,13 @@ const SUMMON_TIERS = [
     color: 'rgba(80,200,120,',
     desc: 'Wild beasts of myth bound to your service.',
     members: [
-      { id:'sc1', name:'Faerie',   icon:'🧚', desc:'Sprites of the forest weave ley threads.',       bonus:'+0.8% Ley/s',         effect:'fps0.008',    baseFPS:3,         baseAtk:5,       baseHP:25,       baseCost:150,       costMult:1.25, owned:0, maxOwned:10, prestigeReq:0 },
-      { id:'sc2', name:'Nymph',    icon:'🌿', desc:'Nature spirits amplify arcane flow.',             bonus:'+1.2% Ley/s',         effect:'fps0.012',    baseFPS:8,         baseAtk:15,      baseHP:75,       baseCost:700,      costMult:1.25, owned:0, maxOwned:10, prestigeReq:0 },
-      { id:'sc3', name:'Satyr',    icon:'🐐', desc:'Wild revellers stir the ley lines.',              bonus:'+0.8% click power',   effect:'click0.008',  baseFPS:25,        baseAtk:40,      baseHP:250,      baseCost:4000,     costMult:1.25, owned:0, maxOwned:10, prestigeReq:0 },
-      { id:'sc4', name:'Centaur',  icon:'🏹', desc:'Half-man archers scout Titan weaknesses.',        bonus:'+1.2% battle power',  effect:'battle0.012', baseFPS:80,        baseAtk:120,     baseHP:750,      baseCost:30000,     costMult:1.25, owned:0, maxOwned:10, prestigeReq:0 },
-      { id:'sc5', name:'Griffin',  icon:'🦅', desc:'Noble guardians soar above the battlefield.',     bonus:'+1.5% Titan damage',  effect:'titan0.015',  baseFPS:250,       baseAtk:400,     baseHP:2500,     baseCost:300000,    costMult:1.25, owned:0, maxOwned:10, prestigeReq:0 },
-      { id:'sc6', name:'Minotaur', icon:'🐂', desc:'The labyrinth beast charges into Titans.',        bonus:'+2% click power',     effect:'click0.02',  baseFPS:750,       baseAtk:1200,    baseHP:8000,     baseCost:5000000,   costMult:1.25, owned:0, maxOwned:10, prestigeReq:0 },
-      { id:'sc7', name:'Hydra',    icon:'🐍', desc:'Each head channels a separate ley current.',      bonus:'+2.5% Ley/s',         effect:'fps0.025',    baseFPS:3000,      baseAtk:4000,    baseHP:50000,    baseCost:150000000,  costMult:1.25, owned:0, maxOwned:10, prestigeReq:0 },
+      { id:'sc1', name:'Faerie',   icon:'🧚', desc:'Sprites of the forest weave ley threads.',       bonus:'+0.8% Ley/s',         effect:'fps0.008',    baseFPS:1.5,         baseAtk:5,       baseHP:25,       baseCost:150,       costMult:1.25, owned:0, maxOwned:10, prestigeReq:0 },
+      { id:'sc2', name:'Nymph',    icon:'🌿', desc:'Nature spirits amplify arcane flow.',             bonus:'+1.2% Ley/s',         effect:'fps0.012',    baseFPS:4,         baseAtk:15,      baseHP:75,       baseCost:700,      costMult:1.25, owned:0, maxOwned:10, prestigeReq:0 },
+      { id:'sc3', name:'Satyr',    icon:'🐐', desc:'Wild revellers stir the ley lines.',              bonus:'+0.8% click power',   effect:'click0.008',  baseFPS:12.5,        baseAtk:40,      baseHP:250,      baseCost:4000,     costMult:1.25, owned:0, maxOwned:10, prestigeReq:0 },
+      { id:'sc4', name:'Centaur',  icon:'🏹', desc:'Half-man archers scout Titan weaknesses.',        bonus:'+1.2% battle power',  effect:'battle0.012', baseFPS:40,        baseAtk:120,     baseHP:750,      baseCost:30000,     costMult:1.25, owned:0, maxOwned:10, prestigeReq:0 },
+      { id:'sc5', name:'Griffin',  icon:'🦅', desc:'Noble guardians soar above the battlefield.',     bonus:'+1.5% Titan damage',  effect:'titan0.015',  baseFPS:125,       baseAtk:400,     baseHP:2500,     baseCost:300000,    costMult:1.25, owned:0, maxOwned:10, prestigeReq:0 },
+      { id:'sc6', name:'Minotaur', icon:'🐂', desc:'The labyrinth beast charges into Titans.',        bonus:'+2% click power',     effect:'click0.02',  baseFPS:375,       baseAtk:1200,    baseHP:8000,     baseCost:5000000,   costMult:1.25, owned:0, maxOwned:10, prestigeReq:0 },
+      { id:'sc7', name:'Hydra',    icon:'🐍', desc:'Each head channels a separate ley current.',      bonus:'+2.5% Ley/s',         effect:'fps0.025',    baseFPS:1500,      baseAtk:4000,    baseHP:50000,    baseCost:150000000,  costMult:1.25, owned:0, maxOwned:10, prestigeReq:0 },
     ]
   },
   {
@@ -1023,12 +1028,12 @@ const SUMMON_TIERS = [
     color: 'rgba(201,168,76,',
     desc: 'Legendary warriors whose deeds shake the world.',
     members: [
-      { id:'sh1', name:'Odysseus', icon:'🌊', desc:'The cunning wanderer turns strategy into power.',    bonus:'+15% Ley/s',          effect:'fps0.15',    baseFPS:10000,     baseAtk:12000,   baseHP:150000,   baseCost:2000000000,     costMult:1.25, owned:0, maxOwned:25, prestigeReq:1  },
-      { id:'sh2', name:'Achilles', icon:'🛡️', desc:'Nearly invincible, his presence emboldens allies.', bonus:'+20% battle power',   effect:'battle0.20', baseFPS:50000,     baseAtk:75000,   baseHP:800000,   baseCost:30000000000,    costMult:1.25, owned:0, maxOwned:25, prestigeReq:2  },
-      { id:'sh3', name:'Perseus',  icon:'🗡️', desc:'Slayer of monsters; Titans tremble at his name.',   bonus:'+25% Titan damage',   effect:'titan0.25',  baseFPS:450000,    baseAtk:600000,  baseHP:6000000,  baseCost:750000000000,    costMult:1.28, owned:0, maxOwned:25, prestigeReq:3  },
-      { id:'sh4', name:'Heracles', icon:'🦁', desc:'His twelve labours multiply your output tenfold.',   bonus:'+30% all production', effect:'global0.30', baseFPS:6000000,   baseAtk:9000000, baseHP:90000000, baseCost:25000000000000,   costMult:1.3,  owned:0, maxOwned:25, prestigeReq:4  },
-      { id:'sh5', name:'Theseus',  icon:'🌀', desc:'Navigator of the labyrinth unlocks hidden power.',   bonus:'+35% click power',    effect:'click0.35',  baseFPS:150000000, baseAtk:250000000,baseHP:3000000000,baseCost:2000000000000000,   costMult:1.3,  owned:0, maxOwned:25, prestigeReq:6  },
-      { id:'sh6', name:'Jason',    icon:'🐏', desc:'The Golden Fleece amplifies ley flow greatly.',      bonus:'+40% Ley/s',          effect:'fps0.40',    baseFPS:6000000000,baseAtk:9000000000,baseHP:110000000000,baseCost:225000000000000000,  costMult:1.35, owned:0, maxOwned:25, prestigeReq:8  },
+      { id:'sh1', name:'Odysseus', icon:'🌊', desc:'The cunning wanderer turns strategy into power.',    bonus:'+15% Ley/s',          effect:'fps0.15',    baseFPS:5000,     baseAtk:12000,   baseHP:150000,   baseCost:2000000000,     costMult:1.25, owned:0, maxOwned:25, prestigeReq:1  },
+      { id:'sh2', name:'Achilles', icon:'🛡️', desc:'Nearly invincible, his presence emboldens allies.', bonus:'+20% battle power',   effect:'battle0.20', baseFPS:25000,     baseAtk:75000,   baseHP:800000,   baseCost:30000000000,    costMult:1.25, owned:0, maxOwned:25, prestigeReq:2  },
+      { id:'sh3', name:'Perseus',  icon:'🗡️', desc:'Slayer of monsters; Titans tremble at his name.',   bonus:'+25% Titan damage',   effect:'titan0.25',  baseFPS:225000,    baseAtk:600000,  baseHP:6000000,  baseCost:750000000000,    costMult:1.28, owned:0, maxOwned:25, prestigeReq:3  },
+      { id:'sh4', name:'Heracles', icon:'🦁', desc:'His twelve labours multiply your output tenfold.',   bonus:'+30% all production', effect:'global0.30', baseFPS:3000000,   baseAtk:9000000, baseHP:90000000, baseCost:25000000000000,   costMult:1.3,  owned:0, maxOwned:25, prestigeReq:4  },
+      { id:'sh5', name:'Theseus',  icon:'🌀', desc:'Navigator of the labyrinth unlocks hidden power.',   bonus:'+35% click power',    effect:'click0.35',  baseFPS:75000000, baseAtk:250000000,baseHP:3000000000,baseCost:2000000000000000,   costMult:1.3,  owned:0, maxOwned:25, prestigeReq:6  },
+      { id:'sh6', name:'Jason',    icon:'🐏', desc:'The Golden Fleece amplifies ley flow greatly.',      bonus:'+40% Ley/s',          effect:'fps0.40',    baseFPS:3000000000,baseAtk:9000000000,baseHP:110000000000,baseCost:225000000000000000,  costMult:1.35, owned:0, maxOwned:25, prestigeReq:8  },
     ]
   },
   {
@@ -1036,12 +1041,12 @@ const SUMMON_TIERS = [
     color: 'rgba(167,139,250,',
     desc: 'Olympian deities whose favour reshapes reality.',
     members: [
-      { id:'sg1', name:'Hermes',   icon:'🪽', desc:'Messenger of gods, swift conduit of ley power.',    bonus:'+20% Ley/s',          effect:'fps0.20',    baseFPS:1.5e11,    baseAtk:2.5e11,  baseHP:3e12,     baseCost:2e19,   costMult:1.3,  owned:0, maxOwned:50, prestigeReq:7  },
-      { id:'sg2', name:'Athena',   icon:'🦉', desc:'Goddess of wisdom doubles arcane efficiency.',       bonus:'+25% all production', effect:'global0.25', baseFPS:1.2e13,    baseAtk:1.8e13,  baseHP:2.5e14,   baseCost:4.5e21,   costMult:1.32, owned:0, maxOwned:50, prestigeReq:8  },
-      { id:'sg3', name:'Apollo',   icon:'☀️', desc:'Sun god bathes the ley lines in radiant energy.',    bonus:'+40% Ley/s',          effect:'fps0.40',    baseFPS:1.5e15,    baseAtk:2.25e15, baseHP:3e16,     baseCost:2e24,  costMult:1.35, owned:0, maxOwned:50, prestigeReq:9  },
-      { id:'sg4', name:'Poseidon', icon:'🔱', desc:'Lord of seas floods the grid with tidal power.',     bonus:'+50% battle power',   effect:'battle0.50', baseFPS:4e17,      baseAtk:6e17,    baseHP:8e18,     baseCost:1.5e28,  costMult:1.35, owned:0, maxOwned:50, prestigeReq:10 },
-      { id:'sg5', name:'Hades',    icon:'💀', desc:'Ruler of the dead; souls fuel endless ley flow.',    bonus:'+60% Titan damage',   effect:'titan0.60',  baseFPS:2e19,      baseAtk:3e20,    baseHP:3e21,     baseCost:2.5e31, costMult:1.4,  owned:0, maxOwned:50, prestigeReq:11 },
-      { id:'sg6', name:'Zeus',     icon:'⚡', desc:'King of Olympus — his lightning is all power.',      bonus:'×2 everything',       effect:'global1.0',  baseFPS:5e22,      baseAtk:8e23,    baseHP:8e24,     baseCost:2e35, costMult:1.5,  owned:0, maxOwned:50, prestigeReq:12 },
+      { id:'sg1', name:'Hermes',   icon:'🪽', desc:'Messenger of gods, swift conduit of ley power.',    bonus:'+20% Ley/s',          effect:'fps0.20',    baseFPS:7.5e10,    baseAtk:2.5e11,  baseHP:3e12,     baseCost:2e19,   costMult:1.3,  owned:0, maxOwned:50, prestigeReq:7  },
+      { id:'sg2', name:'Athena',   icon:'🦉', desc:'Goddess of wisdom doubles arcane efficiency.',       bonus:'+25% all production', effect:'global0.25', baseFPS:6e12,    baseAtk:1.8e13,  baseHP:2.5e14,   baseCost:4.5e21,   costMult:1.32, owned:0, maxOwned:50, prestigeReq:8  },
+      { id:'sg3', name:'Apollo',   icon:'☀️', desc:'Sun god bathes the ley lines in radiant energy.',    bonus:'+40% Ley/s',          effect:'fps0.40',    baseFPS:7.5e14,    baseAtk:2.25e15, baseHP:3e16,     baseCost:2e24,  costMult:1.35, owned:0, maxOwned:50, prestigeReq:9  },
+      { id:'sg4', name:'Poseidon', icon:'🔱', desc:'Lord of seas floods the grid with tidal power.',     bonus:'+50% battle power',   effect:'battle0.50', baseFPS:2e17,      baseAtk:6e17,    baseHP:8e18,     baseCost:1.5e28,  costMult:1.35, owned:0, maxOwned:50, prestigeReq:10 },
+      { id:'sg5', name:'Hades',    icon:'💀', desc:'Ruler of the dead; souls fuel endless ley flow.',    bonus:'+60% Titan damage',   effect:'titan0.60',  baseFPS:1e19,      baseAtk:3e20,    baseHP:3e21,     baseCost:2.5e31, costMult:1.4,  owned:0, maxOwned:50, prestigeReq:11 },
+      { id:'sg6', name:'Zeus',     icon:'⚡', desc:'King of Olympus — his lightning is all power.',      bonus:'×2 everything',       effect:'global1.0',  baseFPS:2.5e22,      baseAtk:8e23,    baseHP:8e24,     baseCost:2e35, costMult:1.5,  owned:0, maxOwned:50, prestigeReq:12 },
     ]
   },
 ];
@@ -1107,100 +1112,100 @@ const TITAN_ZONES = [
     zone: 1, name: 'The Mortal Realm', icon: '🌅', prestigeReq: 0,
     titans: [
       { id:'t1_1', name:'Coeus',      icon:'🌌', epithet:'Titan of Intellect',      desc:'Guardian of the celestial axis, keeper of the north pole of heaven.',  maxHP:800, baseAtk:60, baseDef:25,     reward:{faith:9000}, req:0 },
-      { id:'t1_2', name:'Crius',      icon:'⭐', epithet:'Titan of Constellations', desc:'Ruler of the stars and constellations in the heavens.',                  maxHP:2000, baseAtk:168, baseDef:55,    reward:{faith:24000}, req:1 },
-      { id:'t1_3', name:'Kronos',     icon:'⏳', epithet:'Lord of Time',            desc:'Father of the Olympian gods, devourer of his own children.',             maxHP:5000, baseAtk:470, baseDef:121,    reward:{faith:90000}, req:2 },
-      { id:'t1_4', name:'Mnemosyne',  icon:'📜', epithet:'Titaness of Memory',      desc:'Mother of the nine Muses, keeper of all remembrance.',                   maxHP:12500, baseAtk:1317, baseDef:266,   reward:{faith:300000}, req:3 },
-      { id:'t1_5', name:'Oceanus',    icon:'🌊', epithet:'Lord of the World Ocean', desc:'The great river encircling the earth, first among all waters.',           maxHP:31250, baseAtk:3688, baseDef:586,   reward:{faith:1050000}, req:4 },
+      { id:'t1_2', name:'Crius',      icon:'⭐', epithet:'Titan of Constellations', desc:'Ruler of the stars and constellations in the heavens.',                  maxHP:1600, baseAtk:120, baseDef:50,    reward:{faith:24000}, req:1 },
+      { id:'t1_3', name:'Kronos',     icon:'⏳', epithet:'Lord of Time',            desc:'Father of the Olympian gods, devourer of his own children.',             maxHP:3200, baseAtk:240, baseDef:100,    reward:{faith:90000}, req:2 },
+      { id:'t1_4', name:'Mnemosyne',  icon:'📜', epithet:'Titaness of Memory',      desc:'Mother of the nine Muses, keeper of all remembrance.',                   maxHP:6400, baseAtk:480, baseDef:200,   reward:{faith:300000}, req:3 },
+      { id:'t1_5', name:'Oceanus',    icon:'🌊', epithet:'Lord of the World Ocean', desc:'The great river encircling the earth, first among all waters.',           maxHP:12800, baseAtk:960, baseDef:400,   reward:{faith:1050000}, req:4 },
     ]
   },
   {
     zone: 2, name: 'The Ashen Fields', icon: '🌾', prestigeReq: 0,
     titans: [
-      { id:'t2_1', name:'Hyperion',   icon:'🔆', epithet:'Titan of Light',          desc:'Father of the sun, moon, and dawn, lord of heavenly light.',              maxHP:2000, baseAtk:180, baseDef:50,  reward:{faith:3000000}, req:0 },
-      { id:'t2_2', name:'Iapetus',    icon:'🏔️', epithet:'Titan of Mortality',      desc:'Piercer of the mortal flesh, father of Prometheus and Atlas.',            maxHP:5000, baseAtk:504, baseDef:110,  reward:{faith:9000000}, req:1 },
-      { id:'t2_3', name:'Tethys',     icon:'💧', epithet:'Titaness of Fresh Water', desc:'Mother of rivers and rain clouds, wife of great Oceanus.',                 maxHP:12500, baseAtk:1411, baseDef:242,  reward:{faith:24000000}, req:2 },
-      { id:'t2_4', name:'Theia',      icon:'💎', epithet:'Titaness of Sight',       desc:'Goddess who endowed gold and silver with their brilliance.',               maxHP:31250, baseAtk:3951, baseDef:532, reward:{faith:60000000}, req:3 },
-      { id:'t2_5', name:'Phoebe',     icon:'🌙', epithet:'Titaness of the Moon',    desc:'Bright intellect of prophecy, grandmother of Apollo and Artemis.',         maxHP:78125, baseAtk:11064, baseDef:1171, reward:{faith:180000000}, req:4 },
+      { id:'t2_1', name:'Hyperion',   icon:'🔆', epithet:'Titan of Light',          desc:'Father of the sun, moon, and dawn, lord of heavenly light.',              maxHP:1280000, baseAtk:96000, baseDef:40000,  reward:{faith:3000000}, req:0 },
+      { id:'t2_2', name:'Iapetus',    icon:'🏔️', epithet:'Titan of Mortality',      desc:'Piercer of the mortal flesh, father of Prometheus and Atlas.',            maxHP:2560000, baseAtk:192000, baseDef:80000,  reward:{faith:9000000}, req:1 },
+      { id:'t2_3', name:'Tethys',     icon:'💧', epithet:'Titaness of Fresh Water', desc:'Mother of rivers and rain clouds, wife of great Oceanus.',                 maxHP:5120000, baseAtk:384000, baseDef:160000,  reward:{faith:24000000}, req:2 },
+      { id:'t2_4', name:'Theia',      icon:'💎', epithet:'Titaness of Sight',       desc:'Goddess who endowed gold and silver with their brilliance.',               maxHP:10240000, baseAtk:768000, baseDef:320000, reward:{faith:60000000}, req:3 },
+      { id:'t2_5', name:'Phoebe',     icon:'🌙', epithet:'Titaness of the Moon',    desc:'Bright intellect of prophecy, grandmother of Apollo and Artemis.',         maxHP:20480000, baseAtk:1536000, baseDef:640000, reward:{faith:180000000}, req:4 },
     ]
   },
   {
     zone: 3, name: 'The Iron Wastes', icon: '⛓️', prestigeReq: 0,
     titans: [
-      { id:'t3_1', name:'Atlas',      icon:'🌍', epithet:'Bearer of the Heavens',   desc:'Condemned to hold the celestial sphere upon his mighty shoulders.',        maxHP:3000, baseAtk:220, baseDef:60,  reward:{faith:450000000,  souls:1200}, req:0 },
-      { id:'t3_2', name:'Epimetheus', icon:'🎁', epithet:'Titan of Afterthought',   desc:'Who opened Pandora\'s box and loosed all evils upon the world.',           maxHP:7500, baseAtk:616, baseDef:132,    reward:{faith:1200000000,    souls:1950}, req:1 },
-      { id:'t3_3', name:'Prometheus', icon:'🔥', epithet:'The Fire-Bringer',        desc:'Stole sacred fire from Olympus and gave it to suffering mortals.',         maxHP:18750, baseAtk:1725, baseDef:290,    reward:{faith:3600000000,  souls:3000},req:2 },
-      { id:'t3_4', name:'Menoetius',  icon:'💢', epithet:'Titan of Rash Action',    desc:'Struck down by Zeus for his hubris and violence at the War of Titans.',    maxHP:46875, baseAtk:4829, baseDef:639,    reward:{faith:10500000000,  souls:4800},req:3 },
-      { id:'t3_5', name:'Typhon',     icon:'🌀', epithet:'Father of Monsters',      desc:'The most fearsome creature in all Greek mythology, nearly slew Zeus.',     maxHP:117188, baseAtk:13522, baseDef:1406,    reward:{faith:30000000000,    souls:7500},req:4 },
+      { id:'t3_1', name:'Atlas',      icon:'🌍', epithet:'Bearer of the Heavens',   desc:'Condemned to hold the celestial sphere upon his mighty shoulders.',        maxHP:2048000000, baseAtk:153600000, baseDef:64000000,  reward:{faith:450000000,  souls:1200}, req:0 },
+      { id:'t3_2', name:'Epimetheus', icon:'🎁', epithet:'Titan of Afterthought',   desc:'Who opened Pandora\'s box and loosed all evils upon the world.',           maxHP:4096000000, baseAtk:307200000, baseDef:128000000,    reward:{faith:1200000000,    souls:1950}, req:1 },
+      { id:'t3_3', name:'Prometheus', icon:'🔥', epithet:'The Fire-Bringer',        desc:'Stole sacred fire from Olympus and gave it to suffering mortals.',         maxHP:8192000000, baseAtk:614400000, baseDef:256000000,    reward:{faith:3600000000,  souls:3000},req:2 },
+      { id:'t3_4', name:'Menoetius',  icon:'💢', epithet:'Titan of Rash Action',    desc:'Struck down by Zeus for his hubris and violence at the War of Titans.',    maxHP:16384000000, baseAtk:1228800000, baseDef:512000000,    reward:{faith:10500000000,  souls:4800},req:3 },
+      { id:'t3_5', name:'Typhon',     icon:'🌀', epithet:'Father of Monsters',      desc:'The most fearsome creature in all Greek mythology, nearly slew Zeus.',     maxHP:32768000000, baseAtk:2457600000, baseDef:1024000000,    reward:{faith:30000000000,    souls:7500},req:4 },
     ]
   },
   {
     zone: 4, name: 'The Scorched Peaks', icon: '🌋', prestigeReq: 1,
     titans: [
-      { id:'t4_1', name:'Enceladus',  icon:'🗻', epithet:'Titan of Volcanoes',      desc:'Trapped beneath Mount Etna, his writhing causes earthquakes to shake.',    maxHP:6681, baseAtk:484, baseDef:107,  reward:{faith:75000000000,  souls:12000},req:0 },
-      { id:'t4_2', name:'Polybotes',  icon:'🐍', epithet:'Titan of the Deep Sea',   desc:'Crushed beneath the island of Nisyros by the god Poseidon himself.',       maxHP:16702, baseAtk:1356, baseDef:235,    reward:{faith:210000000000,    souls:19500},req:1 },
-      { id:'t4_3', name:'Porphyrion', icon:'👑', epithet:'King of the Giants',      desc:'The greatest of all Giants, second only to Alcyoneus in terrible power.',  maxHP:41756, baseAtk:3798, baseDef:517,    reward:{faith:600000000000,   souls:30000 },req:2 },
-      { id:'t4_4', name:'Alcyoneus',  icon:'🦴', epithet:'Immortal Giant',          desc:'Mightiest of the Gigantes, immortal on his native soil of Pallene.',       maxHP:104389, baseAtk:10635, baseDef:1138,  reward:{faith:1500000000000,   souls:45000},req:3},
-      { id:'t4_5', name:'Gaia',       icon:'🌿', epithet:'The Primordial Earth',    desc:'The Earth Mother herself, source of all life, ancient beyond reckoning.',   maxHP:260973, baseAtk:29778, baseDef:2504,    reward:{faith:4500000000000, souls:75000},req:4},
+      { id:'t4_1', name:'Enceladus',  icon:'🗻', epithet:'Titan of Volcanoes',      desc:'Trapped beneath Mount Etna, his writhing causes earthquakes to shake.',    maxHP:3276800000000, baseAtk:245760000000, baseDef:102400000000,  reward:{faith:75000000000,  souls:12000},req:0 },
+      { id:'t4_2', name:'Polybotes',  icon:'🐍', epithet:'Titan of the Deep Sea',   desc:'Crushed beneath the island of Nisyros by the god Poseidon himself.',       maxHP:6553600000000, baseAtk:491520000000, baseDef:204800000000,    reward:{faith:210000000000,    souls:19500},req:1 },
+      { id:'t4_3', name:'Porphyrion', icon:'👑', epithet:'King of the Giants',      desc:'The greatest of all Giants, second only to Alcyoneus in terrible power.',  maxHP:13107200000000, baseAtk:983040000000, baseDef:409600000000,    reward:{faith:600000000000,   souls:30000 },req:2 },
+      { id:'t4_4', name:'Alcyoneus',  icon:'🦴', epithet:'Immortal Giant',          desc:'Mightiest of the Gigantes, immortal on his native soil of Pallene.',       maxHP:26214400000000, baseAtk:1966080000000, baseDef:819200000000,  reward:{faith:1500000000000,   souls:45000},req:3},
+      { id:'t4_5', name:'Gaia',       icon:'🌿', epithet:'The Primordial Earth',    desc:'The Earth Mother herself, source of all life, ancient beyond reckoning.',   maxHP:52428800000000, baseAtk:3932160000000, baseDef:1638400000000,    reward:{faith:4500000000000, souls:75000},req:4},
     ]
   },
   {
     zone: 5, name: 'The Sunken Depths', icon: '🌊', prestigeReq: 3,
     titans: [
-      { id:'t5_1', name:'Thalassa',   icon:'🐚', epithet:'Spirit of the Sea',       desc:'Ancient sea-spirit, mother of fish and all sea creatures by Pontus.',      maxHP:16819, baseAtk:1206, baseDef:215,    reward:{faith:12000000000000,   souls:120000 },req:0 },
-      { id:'t5_2', name:'Pontus',     icon:'🌑', epithet:'God of the Deep',         desc:'The deep sea itself personified, one of the first beings to ever exist.',   maxHP:42047, baseAtk:3377, baseDef:474, reward:{faith:36000000000000, souls:195000},req:1},
-      { id:'t5_3', name:'Thaumas',    icon:'🌈', epithet:'God of Sea Wonders',      desc:'Father of the rainbow goddess Iris and the Harpies of the stormwinds.',    maxHP:105117, baseAtk:9455, baseDef:1042, reward:{faith:105000000000000, souls:300000 },req:2 },
-      { id:'t5_4', name:'Phorcys',    icon:'🦀', epithet:'God of Hidden Dangers',   desc:'Ancient sea god who fathered the most terrible monsters of the deep.',      maxHP:262793, baseAtk:26473, baseDef:2292, reward:{faith:300000000000000,   souls:480000},req:3},
-      { id:'t5_5', name:'Ceto',       icon:'🦈', epithet:'Goddess of Sea Monsters', desc:'Her very name means whale or sea monster, dread mother of the Gorgons.',   maxHP:656982, baseAtk:74125, baseDef:5043, reward:{faith:900000000000000,   souls:750000},req:4 },
+      { id:'t5_1', name:'Thalassa',   icon:'🐚', epithet:'Spirit of the Sea',       desc:'Ancient sea-spirit, mother of fish and all sea creatures by Pontus.',      maxHP:5242880000000000, baseAtk:393216000000000, baseDef:163840000000000,    reward:{faith:12000000000000,   souls:120000 },req:0 },
+      { id:'t5_2', name:'Pontus',     icon:'🌑', epithet:'God of the Deep',         desc:'The deep sea itself personified, one of the first beings to ever exist.',   maxHP:10485760000000000, baseAtk:786432000000000, baseDef:327680000000000, reward:{faith:36000000000000, souls:195000},req:1},
+      { id:'t5_3', name:'Thaumas',    icon:'🌈', epithet:'God of Sea Wonders',      desc:'Father of the rainbow goddess Iris and the Harpies of the stormwinds.',    maxHP:20971520000000000, baseAtk:1572864000000000, baseDef:655360000000000, reward:{faith:105000000000000, souls:300000 },req:2 },
+      { id:'t5_4', name:'Phorcys',    icon:'🦀', epithet:'God of Hidden Dangers',   desc:'Ancient sea god who fathered the most terrible monsters of the deep.',      maxHP:41943040000000000, baseAtk:3145728000000000, baseDef:1310720000000000, reward:{faith:300000000000000,   souls:480000},req:3},
+      { id:'t5_5', name:'Ceto',       icon:'🦈', epithet:'Goddess of Sea Monsters', desc:'Her very name means whale or sea monster, dread mother of the Gorgons.',   maxHP:83886080000000000, baseAtk:6291456000000000, baseDef:2621440000000000, reward:{faith:900000000000000,   souls:750000},req:4 },
     ]
   },
   {
     zone: 6, name: 'The Void Between Stars', icon: '🌌', prestigeReq: 5,
     titans: [
-      { id:'t6_1', name:'Aether',     icon:'🌟', epithet:'God of the Upper Air',    desc:'The bright, glowing upper atmosphere above the clouds and grey mist.',      maxHP:47226, baseAtk:3348, baseDef:484,   reward:{faith:2.400e+15,   souls:1200000 },req:0 },
-      { id:'t6_2', name:'Erebus',     icon:'🖤', epithet:'God of Darkness',         desc:'The deep darkness of the underworld, one of the first primordial beings.',  maxHP:118064, baseAtk:9376, baseDef:1064, reward:{faith:7.500e+15, souls:1950000},req:1},
-      { id:'t6_3', name:'Nyx',        icon:'🌑', epithet:'Goddess of Night',        desc:'Night itself, a shadowy figure of exceptional power and beauty.',           maxHP:295160, baseAtk:26252, baseDef:2341,   reward:{faith:2.100e+16,   souls:3000000 },req:2 },
-      { id:'t6_4', name:'Chaos',      icon:'🌀', epithet:'The First Void',          desc:'The first thing to exist was Chaos, the yawning emptiness at the start.',   maxHP:737900, baseAtk:73504, baseDef:5149,   reward:{faith:6.000e+16,   souls:4800000},req:3},
-      { id:'t6_5', name:'Tartarus',   icon:'⛓️', epithet:'The Abyss Itself',        desc:'The deep abyss used as a dungeon of torment for the wicked Titans.',        maxHP:1844749, baseAtk:205812, baseDef:11328, reward:{faith:1.800e+17,   souls:7500000},req:4 },
+      { id:'t6_1', name:'Aether',     icon:'🌟', epithet:'God of the Upper Air',    desc:'The bright, glowing upper atmosphere above the clouds and grey mist.',      maxHP:8388608000000000000, baseAtk:629145600000000000, baseDef:262144000000000000,   reward:{faith:2.400e+15,   souls:1200000 },req:0 },
+      { id:'t6_2', name:'Erebus',     icon:'🖤', epithet:'God of Darkness',         desc:'The deep darkness of the underworld, one of the first primordial beings.',  maxHP:16777216000000000000, baseAtk:1258291200000000000, baseDef:524288000000000000, reward:{faith:7.500e+15, souls:1950000},req:1},
+      { id:'t6_3', name:'Nyx',        icon:'🌑', epithet:'Goddess of Night',        desc:'Night itself, a shadowy figure of exceptional power and beauty.',           maxHP:33554432000000000000, baseAtk:2516582400000000000, baseDef:1048576000000000000,   reward:{faith:2.100e+16,   souls:3000000 },req:2 },
+      { id:'t6_4', name:'Chaos',      icon:'🌀', epithet:'The First Void',          desc:'The first thing to exist was Chaos, the yawning emptiness at the start.',   maxHP:67108864000000000000, baseAtk:5033164800000000000, baseDef:2097152000000000000,   reward:{faith:6.000e+16,   souls:4800000},req:3},
+      { id:'t6_5', name:'Tartarus',   icon:'⛓️', epithet:'The Abyss Itself',        desc:'The deep abyss used as a dungeon of torment for the wicked Titans.',        maxHP:134217728000000000000, baseAtk:10066329600000000000, baseDef:4194304000000000000, reward:{faith:1.800e+17,   souls:7500000},req:4 },
     ]
   },
   {
     zone: 7, name: 'The Fractured Olympus', icon: '⚡', prestigeReq: 7,
     titans: [
-      { id:'t7_1', name:'Ares Fallen', icon:'🗡️', epithet:'War God Unchained',      desc:'Stripped of Olympian grace, Ares now fights with savage unbridled fury.',   maxHP:146323, baseAtk:10259, baseDef:1199,   reward:{faith:4.500e+17, souls:12000000 },req:0 },
-      { id:'t7_2', name:'Hephaestus', icon:'🔨', epithet:'Forge God Corrupted',     desc:'His forge now produces weapons of mass destruction for the void forces.',   maxHP:365808, baseAtk:28725, baseDef:2637, reward:{faith:1.350e+18, souls:19500000},req:1},
-      { id:'t7_3', name:'Dionysus',   icon:'🍇', epithet:'God of Madness Unleashed',desc:'Intoxicating madness radiates from this corrupted deity of revelry.',       maxHP:914520, baseAtk:80429, baseDef:5802, reward:{faith:3.900e+18, souls:30000000 },req:2 },
-      { id:'t7_4', name:'Demeter',    icon:'🌾', epithet:'Harvest Goddess Wrathful',desc:'Her grief and rage cause eternal winter wherever she treads.',               maxHP:2286299, baseAtk:225200, baseDef:12764, reward:{faith:1.140e+19, souls:48000000},req:3},
-      { id:'t7_5', name:'Apollo Dark',icon:'🌑', epithet:'God of Plague',           desc:'The sun god\'s dark twin, bringing pestilence instead of light.',           maxHP:5715747, baseAtk:630561, baseDef:28080,   reward:{faith:3.300e+19, souls:75000000},req:4 },
+      { id:'t7_1', name:'Ares Fallen', icon:'🗡️', epithet:'War God Unchained',      desc:'Stripped of Olympian grace, Ares now fights with savage unbridled fury.',   maxHP:13421772800000000000000, baseAtk:1006632960000000000000, baseDef:419430400000000000000,   reward:{faith:4.500e+17, souls:12000000 },req:0 },
+      { id:'t7_2', name:'Hephaestus', icon:'🔨', epithet:'Forge God Corrupted',     desc:'His forge now produces weapons of mass destruction for the void forces.',   maxHP:26843545600000000000000, baseAtk:2013265920000000000000, baseDef:838860800000000000000, reward:{faith:1.350e+18, souls:19500000},req:1},
+      { id:'t7_3', name:'Dionysus',   icon:'🍇', epithet:'God of Madness Unleashed',desc:'Intoxicating madness radiates from this corrupted deity of revelry.',       maxHP:53687091200000000000000, baseAtk:4026531840000000000000, baseDef:1677721600000000000000, reward:{faith:3.900e+18, souls:30000000 },req:2 },
+      { id:'t7_4', name:'Demeter',    icon:'🌾', epithet:'Harvest Goddess Wrathful',desc:'Her grief and rage cause eternal winter wherever she treads.',               maxHP:107374182400000000000000, baseAtk:8053063680000000000000, baseDef:3355443200000000000000, reward:{faith:1.140e+19, souls:48000000},req:3},
+      { id:'t7_5', name:'Apollo Dark',icon:'🌑', epithet:'God of Plague',           desc:'The sun god\'s dark twin, bringing pestilence instead of light.',           maxHP:214748364800000000000000, baseAtk:16106127360000000000000, baseDef:6710886400000000000000,   reward:{faith:3.300e+19, souls:75000000},req:4 },
     ]
   },
   {
     zone: 8, name: 'The Primordial Ocean', icon: '🔱', prestigeReq: 9,
     titans: [
-      { id:'t8_1', name:'Poseidon Rex',icon:'🌊', epithet:'Unchained Sea King',     desc:'Without Olympian restraint, the seas churn with apocalyptic fury.',         maxHP:495869, baseAtk:34377, baseDef:3250, reward:{faith:9.000e+19,   souls:120000000 },req:0 },
-      { id:'t8_2', name:'Hades Risen', icon:'💀', epithet:'Death Unleashed',        desc:'The underworld erupts as Hades marches upon the living world above.',       maxHP:1239672, baseAtk:96256, baseDef:7149, reward:{faith:2.700e+20,   souls:195000000},req:1},
-      { id:'t8_3', name:'Hera Wrathful',icon:'👑',epithet:'Wrath of the Sky Queen', desc:'The queen of the gods, her jealousy and rage now without limit or mercy.',  maxHP:3099179, baseAtk:269516, baseDef:15729, reward:{faith:8.100e+20, souls:300000000 },req:2 },
-      { id:'t8_4', name:'Athena War',  icon:'🦉', epithet:'Goddess of Total War',   desc:'Wisdom applied to destruction, every battle calculated to annihilate.',     maxHP:7747948, baseAtk:754645, baseDef:34603, reward:{faith:2.400e+21,   souls:480000000},req:3},
-      { id:'t8_5', name:'Zeus Raging', icon:'⛈️', epithet:'Thunderlord Unbound',   desc:'The king of Olympus, his power unconstrained, hurls storms without mercy.', maxHP:19369869, baseAtk:2113005, baseDef:76127, reward:{faith:7.500e+21, souls:750000000},req:4 },
+      { id:'t8_1', name:'Poseidon Rex',icon:'🌊', epithet:'Unchained Sea King',     desc:'Without Olympian restraint, the seas churn with apocalyptic fury.',         maxHP:21474836480000000000000000, baseAtk:1610612736000000000000000, baseDef:671088640000000000000000, reward:{faith:9.000e+19,   souls:120000000 },req:0 },
+      { id:'t8_2', name:'Hades Risen', icon:'💀', epithet:'Death Unleashed',        desc:'The underworld erupts as Hades marches upon the living world above.',       maxHP:42949672960000000000000000, baseAtk:3221225472000000000000000, baseDef:1342177280000000000000000, reward:{faith:2.700e+20,   souls:195000000},req:1},
+      { id:'t8_3', name:'Hera Wrathful',icon:'👑',epithet:'Wrath of the Sky Queen', desc:'The queen of the gods, her jealousy and rage now without limit or mercy.',  maxHP:85899345920000000000000000, baseAtk:6442450944000000000000000, baseDef:2684354560000000000000000, reward:{faith:8.100e+20, souls:300000000 },req:2 },
+      { id:'t8_4', name:'Athena War',  icon:'🦉', epithet:'Goddess of Total War',   desc:'Wisdom applied to destruction, every battle calculated to annihilate.',     maxHP:171798691840000000000000000, baseAtk:12884901888000000000000000, baseDef:5368709120000000000000000, reward:{faith:2.400e+21,   souls:480000000},req:3},
+      { id:'t8_5', name:'Zeus Raging', icon:'⛈️', epithet:'Thunderlord Unbound',   desc:'The king of Olympus, his power unconstrained, hurls storms without mercy.', maxHP:343597383680000000000000000, baseAtk:25769803776000000000000000, baseDef:10737418240000000000000000, reward:{faith:7.500e+21, souls:750000000},req:4 },
     ]
   },
   {
     zone: 9, name: 'The Throne of Eternity', icon: '✨', prestigeReq: 11,
     titans: [
-      { id:'t9_1', name:'Ananke',     icon:'🔗', epithet:'Goddess of Inevitability',desc:'The goddess of compulsion, necessity, and fate that none can escape.',      maxHP:1824466, baseAtk:125071, baseDef:9565, reward:{faith:2.100e+22,   souls:1200000000 },req:0 },
-      { id:'t9_2', name:'Chronos',    icon:'⌛', epithet:'The Infinite Time',       desc:'Not Kronos the Titan but Chronos, time itself given terrible agency.',       maxHP:4561166, baseAtk:350200, baseDef:21044,   reward:{faith:6.000e+22,   souls:1950000000},req:1},
-      { id:'t9_3', name:'Phanes',     icon:'🥚', epithet:'The Primordial Creator',  desc:'The first-born light, the creator deity who hatched from the cosmic egg.',   maxHP:11402915, baseAtk:980559, baseDef:46297, reward:{faith:1.800e+23,   souls:3000000000 },req:2 },
-      { id:'t9_4', name:'Moirai',     icon:'🧵', epithet:'The Three Fates Combined',desc:'The three Fates merged into a single, terrifying arbiter of all destiny.',   maxHP:28507289, baseAtk:2745566, baseDef:101853, reward:{faith:5.400e+23, souls:4800000000},req:3},
-      { id:'t9_5', name:'Nemesis',    icon:'⚖️', epithet:'Divine Retribution',      desc:'The inescapable spirit of divine retribution and righteous indignation.',    maxHP:71268221, baseAtk:7687585, baseDef:224077, reward:{faith:1.650e+24, souls:7500000000},req:4 },
+      { id:'t9_1', name:'Ananke',     icon:'🔗', epithet:'Goddess of Inevitability',desc:'The goddess of compulsion, necessity, and fate that none can escape.',      maxHP:34359738368000000000000000000, baseAtk:2576980377600000000000000000, baseDef:1073741824000000000000000000, reward:{faith:2.100e+22,   souls:1200000000 },req:0 },
+      { id:'t9_2', name:'Chronos',    icon:'⌛', epithet:'The Infinite Time',       desc:'Not Kronos the Titan but Chronos, time itself given terrible agency.',       maxHP:68719476736000000000000000000, baseAtk:5153960755200000000000000000, baseDef:2147483648000000000000000000,   reward:{faith:6.000e+22,   souls:1950000000},req:1},
+      { id:'t9_3', name:'Phanes',     icon:'🥚', epithet:'The Primordial Creator',  desc:'The first-born light, the creator deity who hatched from the cosmic egg.',   maxHP:137438953472000000000000000000, baseAtk:10307921510400000000000000000, baseDef:4294967296000000000000000000, reward:{faith:1.800e+23,   souls:3000000000 },req:2 },
+      { id:'t9_4', name:'Moirai',     icon:'🧵', epithet:'The Three Fates Combined',desc:'The three Fates merged into a single, terrifying arbiter of all destiny.',   maxHP:274877906944000000000000000000, baseAtk:20615843020800000000000000000, baseDef:8589934592000000000000000000, reward:{faith:5.400e+23, souls:4800000000},req:3},
+      { id:'t9_5', name:'Nemesis',    icon:'⚖️', epithet:'Divine Retribution',      desc:'The inescapable spirit of divine retribution and righteous indignation.',    maxHP:549755813888000000000000000000, baseAtk:41231686041600000000000000000, baseDef:17179869184000000000000000000, reward:{faith:1.650e+24, souls:7500000000},req:4 },
     ]
   },
   {
     zone: 10, name: 'The Seat of Creation', icon: '🌠', prestigeReq: 12,
     titans: [
-      { id:'t10_1',name:'Hemera',     icon:'☀️', epithet:'Goddess of Day',          desc:'Day itself, primordial goddess who drives away the mists of her mother Nyx.',maxHP:7242781, baseAtk:490961, baseDef:30378,   reward:{faith:4.500e+24, souls:12000000000 },req:0 },
-      { id:'t10_2',name:'Eros Primal',icon:'💘', epithet:'Primordial Love',         desc:'The first force, love as a cosmic power that drives creation ever forward.', maxHP:18106954, baseAtk:1374692, baseDef:66833,   reward:{faith:1.350e+25, souls:19500000000},req:1},
-      { id:'t10_3',name:'Uranus',     icon:'🌀', epithet:'The Starry Heaven',       desc:'The sky and heavens personified, the primordial father, struck down by Kronos.', maxHP:45267384, baseAtk:3849138, baseDef:147032,reward:{faith:4.200e+25,souls:30000000000},req:2},
-      { id:'t10_4',name:'The Void',   icon:'🕳️', epithet:'Unmaking Itself',         desc:'The nothingness that existed before existence, now hungry to reclaim all.', maxHP:113168460, baseAtk:10777585, baseDef:323469, reward:{faith:1.350e+26, souls:48000000000},req:3},
-      { id:'t10_5',name:'Apotheosis', icon:'🌟', epithet:'The Divine Ascension',    desc:'The ultimate form of transcended power. Defeat it to become truly divine.', maxHP:282921150, baseAtk:30177239, baseDef:711633, reward:{faith:4.500e+26, souls:75000000000},req:4},
+      { id:'t10_1',name:'Hemera',     icon:'☀️', epithet:'Goddess of Day',          desc:'Day itself, primordial goddess who drives away the mists of her mother Nyx.',maxHP:54975581388800000000000000000000, baseAtk:4123168604160000000000000000000, baseDef:1717986918400000000000000000000,   reward:{faith:4.500e+24, souls:12000000000 },req:0 },
+      { id:'t10_2',name:'Eros Primal',icon:'💘', epithet:'Primordial Love',         desc:'The first force, love as a cosmic power that drives creation ever forward.', maxHP:109951162777600000000000000000000, baseAtk:8246337208320000000000000000000, baseDef:3435973836800000000000000000000,   reward:{faith:1.350e+25, souls:19500000000},req:1},
+      { id:'t10_3',name:'Uranus',     icon:'🌀', epithet:'The Starry Heaven',       desc:'The sky and heavens personified, the primordial father, struck down by Kronos.', maxHP:219902325555200000000000000000000, baseAtk:16492674416640000000000000000000, baseDef:6871947673600000000000000000000,reward:{faith:4.200e+25,souls:30000000000},req:2},
+      { id:'t10_4',name:'The Void',   icon:'🕳️', epithet:'Unmaking Itself',         desc:'The nothingness that existed before existence, now hungry to reclaim all.', maxHP:439804651110400000000000000000000, baseAtk:32985348833280000000000000000000, baseDef:13743895347200000000000000000000, reward:{faith:1.350e+26, souls:48000000000},req:3},
+      { id:'t10_5',name:'Apotheosis', icon:'🌟', epithet:'The Divine Ascension',    desc:'The ultimate form of transcended power. Defeat it to become truly divine.', maxHP:879609302220800000000000000000000, baseAtk:65970697666560000000000000000000, baseDef:27487790694400000000000000000000, reward:{faith:4.500e+26, souls:75000000000},req:4},
     ]
   },
 ];
@@ -1391,7 +1396,8 @@ function calcFPS() {
   const sm = summonMults();
   const sk = skillMults();
   const am = arcaneUpgradeMults();
-  let globalMult = G.divineMultiplier * sm.fpsMult * am.summonFpsMult * sm.globalMult * sk.fpsMult * sk.globalMult;
+  const titanFpsMult = Math.pow(1.02, titansDefeated());
+  let globalMult = G.divineMultiplier * sm.fpsMult * am.summonFpsMult * sm.globalMult * sk.fpsMult * sk.globalMult * titanFpsMult;
   ALL_UPGRADES.filter(u=>u.bought).forEach(u => {
     if (u.effect==='globalMult1.5') globalMult*=1.5;
     if (u.effect==='globalMult2')   globalMult*=2;
@@ -1520,40 +1526,101 @@ function buySummon(id) {
   updateHeader();
 }
 
+// Auto-battle state: track active battle per titan id
+const ACTIVE_BATTLES = {};
+
 function attackTitan(id) {
   const titan = TITAN_STATE.find(t=>t.id===id);
   if (!titan || titan.defeated) return;
-  // Damage = top-3 summon total Atk reduced by titan Defense, plus base battle power
-  const best3  = getBestSummons(3);
-  const sumAtk = best3.reduce((s, x) => s + x.totalAtk, 0);
-  const sm     = summonMults();
-  const sk     = skillMults();
-  const am     = arcaneUpgradeMults();
-  const def    = titan.baseDef || 0;
-  // Defense reduces damage (min 10% still gets through)
-  const defReduction = Math.max(0.1, 1 - def / (def + sumAtk * 0.5 + 1));
-  const baseBP = calcBattlePower();
-  let dmg = (sumAtk + baseBP) * defReduction * (0.8 + Math.random() * 0.4) * sm.titanMult;
-  titan.currentHP = Math.max(0, titan.currentHP - dmg);
-  document.getElementById('battle-anim').className='show';
-  setTimeout(()=>document.getElementById('battle-anim').className='', 400);
-  const fighters = best3.length > 0
-    ? best3.map(s => s.icon).join('') + ' '
-    : '⚔ ';
-  log(`${fighters}struck ${titan.name} for ${fmt(dmg)} damage!`, 'battle');
-  if (titan.currentHP <= 0) {
-    titan.defeated = true;
-    const sm2 = soulMultiplier();
-    const sGain = Math.floor(titan.reward.souls * sm2);
-    const am2 = arcaneUpgradeMults();
-    const faithGain = Math.floor(titan.reward.faith * am2.titanLeyMult);
-    G.faith += faithGain; G.faithTotal += faithGain;
-    G.dust += sGain;
-    spawnParticle(window.innerWidth/2, window.innerHeight/2, `${titan.name} SLAIN!`);
-    log(`✦ TITAN SLAIN: ${titan.name}! +${fmt(faithGain)} Ley Power, +${sGain} Arcane Dust!`, 'victory');
-    checkMilestones();
+  // If already in battle, do nothing (button re-click)
+  if (ACTIVE_BATTLES[id]) return;
+
+  const best3 = getBestSummons(3);
+  if (best3.length === 0) { log('⚠ No summons! Summon creatures to fight.', 'battle'); return; }
+
+  // Calculate total party HP to determine if defeat is possible
+  const partyHP = best3.reduce((s, x) => s + x.totalHP, 0);
+  if (partyHP <= 0) { log('⚠ Your summons have no HP — summon more!', 'battle'); return; }
+
+  // Reset titan HP if it was at 0 but somehow not defeated
+  if (titan.currentHP <= 0 && !titan.defeated) titan.currentHP = titan.maxHP;
+
+  let currentPartyHP = partyHP;
+  let round = 0;
+
+  ACTIVE_BATTLES[id] = true;
+  renderTitansTab();
+
+  function doBattleRound() {
+    if (!ACTIVE_BATTLES[id]) return; // cancelled (e.g. tab switch or prestige)
+    const t = TITAN_STATE.find(x=>x.id===id);
+    if (!t || t.defeated) { delete ACTIVE_BATTLES[id]; renderTitansTab(); updateHeader(); return; }
+
+    round++;
+    // Player attacks titan
+    const b3    = getBestSummons(3);
+    const sumAtk = b3.reduce((s, x) => s + x.totalAtk, 0);
+    const sm     = summonMults();
+    const am     = arcaneUpgradeMults();
+    const def    = t.baseDef || 0;
+    const defReduction = Math.max(0.1, 1 - def / (def + sumAtk * 0.5 + 1));
+    const baseBP = calcBattlePower();
+    const playerDmg = (sumAtk + baseBP) * defReduction * (0.85 + Math.random() * 0.3) * sm.titanMult;
+    t.currentHP = Math.max(0, t.currentHP - playerDmg);
+
+    // Titan attacks party
+    const titanAtk = t.baseAtk || 0;
+    const partyDefReduction = Math.max(0.1, 1 - sumAtk * 0.3 / (sumAtk * 0.3 + titanAtk + 1));
+    const titanDmg = titanAtk * partyDefReduction * (0.8 + Math.random() * 0.4);
+    currentPartyHP -= titanDmg;
+
+    const fighters = b3.map(s => s.icon).join('');
+    log(`${fighters} ⚔ Round ${round}: dealt ${fmt(playerDmg)} · took ${fmt(titanDmg)}`, 'battle');
+
+    // Victory
+    if (t.currentHP <= 0) {
+      t.defeated = true;
+      t.currentHP = 0;
+      delete ACTIVE_BATTLES[id];
+      const sm2 = soulMultiplier();
+      const sGain = Math.floor(t.reward.souls * sm2);
+      const am2 = arcaneUpgradeMults();
+      const baseFaithGain = Math.floor(t.reward.faith * am2.titanLeyMult);
+      const fpsBonus = Math.floor(calcFPS() * am2.titanFpsReward);
+      const faithGain = baseFaithGain + fpsBonus;
+      G.faith += faithGain; G.faithTotal += faithGain;
+      G.dust += sGain;
+      spawnParticle(window.innerWidth/2, window.innerHeight/2, `${t.name} SLAIN!`);
+      log(`✦ TITAN SLAIN: ${t.name}! +${fmt(faithGain)} Ley Power${sGain>0?', +'+sGain+' Arcane Dust':''}!`, 'victory');
+      document.getElementById('battle-anim').className='show';
+      setTimeout(()=>{ document.getElementById('battle-anim').className=''; }, 500);
+      checkMilestones();
+      renderTitansTab(); updateHeader();
+      return;
+    }
+
+    // Defeat — party HP depleted
+    if (currentPartyHP <= 0) {
+      delete ACTIVE_BATTLES[id];
+      t.currentHP = t.maxHP; // titan fully resets on player defeat
+      log(`💀 DEFEATED by ${t.name}! Your party was destroyed. The titan recovers.`, 'battle');
+      renderTitansTab(); updateHeader();
+      return;
+    }
+
+    // Continue battle next frame (~600ms per round)
+    renderTitansTab();
+    setTimeout(doBattleRound, 600);
   }
-  renderTitansTab(); updateHeader();
+
+  setTimeout(doBattleRound, 100);
+}
+
+function cancelBattle(id) {
+  if (ACTIVE_BATTLES[id]) {
+    delete ACTIVE_BATTLES[id];
+    renderTitansTab();
+  }
 }
 
 function doPrestige() {
@@ -1574,8 +1641,8 @@ function buySkill(id) {
   if (!sk) return;
   if (sk.level >= sk.maxLevel) return;
   if (!skillUnlocked(sk)) return;
-  if (G.skillPoints < sk.cost) return;
-  G.skillPoints -= sk.cost;
+  if (G.dust < sk.cost) return;
+  G.dust -= sk.cost;
   sk.level++;
   log(`Trained skill: ${sk.name} (Lv ${sk.level})!`, 'divine');
   renderSkillTree();
@@ -1587,7 +1654,7 @@ function checkMilestones() {
   MILESTONES.forEach(m => {
     if (!m.unlocked && m.check()) {
       m.unlocked = true;
-      G.skillPoints += m.spReward;
+      G.dust += m.spReward;
       G.totalSkillPoints += m.spReward;
       log(`★ Milestone: ${m.name}! (+${m.spReward} Arcane Dust)`, 'divine');
       changed = true;
@@ -1624,7 +1691,7 @@ function renderArcaneUpgrades() {
     if (au.effect === 'summonFpsMult0.5_per_level') return au.level>0 ? `Now: summons +${(50*au.level)}% Ley/s` : '+50% summon Ley/s / level';
     if (au.effect === 'fpsToClick0.1_per_level')    return au.level>0 ? `Now: ${(10*au.level)}% of Ley/s → click` : '+10% Ley/s to click / level';
     if (au.effect === 'summonCombat0.05_per_level') return au.level>0 ? `Now: summons +${(5*au.level)}% Atk & HP` : '+5% summon Atk & HP / level';
-    if (au.effect === 'titanLeyDrop0.25_per_level') return au.level>0 ? `Now: titans +${(25*au.level)}% Ley drop` : '+25% titan Ley drop / level';
+    if (au.effect === 'titanFpsReward1.25_per_level') return au.level>0 ? `Now: +${Math.pow(1.25,au.level).toFixed(2)}x Ley/s as bonus reward` : '+Ley/s x1.25 per level';
     return '';
   }
 
@@ -1918,9 +1985,12 @@ function renderTitansTab() {
         <div class="battle-meta">
           <div class="rewards-txt">Reward: <span>${fmt(faithGain)} Ley Power</span> · <span>${sGain} Souls</span></div>
         </div>
-        <button class="battle-btn ${titan.defeated?'victory':''}" data-titanid="${titan.id}" ${titan.defeated?'disabled':''}>
-          ${titan.defeated?'✦ Titan Defeated':'⚔ Strike '+titan.name}
-        </button>
+        ${(()=>{
+          const inBattle = ACTIVE_BATTLES[titan.id];
+          if (titan.defeated) return '<button class="battle-btn victory" disabled>✦ Titan Defeated</button>';
+          if (inBattle) return '<button class="battle-btn" style="border-color:rgba(224,80,80,0.6);background:rgba(80,20,20,0.4)" onclick="cancelBattle(\'' + titan.id + '\')">⏹ Fighting... (Cancel)</button>';
+          return '<button class="battle-btn" data-titanid="' + titan.id + '">⚔ Engage ' + titan.name + '</button>';
+        })()}
       </div>`;
     }).join('') +
     `</div>`;
@@ -1976,69 +2046,89 @@ function renderTranscendTab() {
 function renderSkillTree() {
   if (G.currentTab !== 'skilltree') return;
   const sp = document.getElementById('sp-display');
-  if (sp) sp.textContent = G.skillPoints;
+  if (sp) sp.textContent = fmt(G.dust);
 
-  const tree = document.getElementById('skill-tree');
-  if (!tree) return;
+  const wrap = document.getElementById('skill-tree');
+  if (!wrap) return;
+  wrap.innerHTML = '';
 
-  // Group by row
-  const rows = {};
-  SKILLS.forEach(sk => { (rows[sk.row]=rows[sk.row]||[]).push(sk); });
+  const TREE_DEFS = {
+    creature: { label:'🐾 Creature Mastery', color:'#6ee7b7', glow:'rgba(110,231,183,0.25)' },
+    hero:     { label:'⚔️ Hero Legends',     color:'#93c5fd', glow:'rgba(147,197,253,0.25)' },
+    god:      { label:'✨ Divine Pantheon',   color:'#c4b5fd', glow:'rgba(196,181,253,0.25)' },
+  };
 
-  tree.innerHTML = '';
-  const rowCount = Math.max(...Object.keys(rows).map(Number))+1;
+  const activeTree = G.activeSkillTree || 'creature';
+  const treeInfo = TREE_DEFS[activeTree];
+  const treeSkills = SKILLS.filter(s => s.tree === activeTree);
+  const byRow = {};
+  treeSkills.forEach(s => { (byRow[s.row] = byRow[s.row]||[]).push(s); });
+  const rowNums = Object.keys(byRow).map(Number).sort((a,b)=>a-b);
 
-  for (let r = 0; r < rowCount; r++) {
-    const skills = (rows[r]||[]).sort((a,b)=>a.col-b.col);
+  const col = document.createElement('div');
+  col.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:0;max-width:400px;margin:0 auto;' +
+    'background:rgba(10,8,18,0.6);border:1px solid ' + treeInfo.color + '33;border-radius:10px;padding:20px 16px;';
 
-    // Connector above row (except row 0)
-    if (r > 0) {
-      const connRow = document.createElement('div');
-      connRow.style.cssText = 'display:flex;flex-direction:row;gap:0;align-items:center;justify-content:center';
-      // For each skill, draw a vertical connector if it has a req in prev row
-      skills.forEach((sk,i) => {
-        const active = sk.req.some(rid => SKILLS.find(s=>s.id===rid)?.level > 0);
-        if (i > 0) { const sp2 = document.createElement('div'); sp2.style.cssText='flex:1'; connRow.appendChild(sp2); }
-        const conn = document.createElement('div');
-        conn.className = 'skill-connector' + (active?' active':'');
-        conn.style.margin='0 auto';
-        connRow.appendChild(conn);
-      });
-      tree.appendChild(connRow);
+  const hdr = document.createElement('div');
+  hdr.style.cssText = "font-family:'Cinzel',serif;font-size:13px;letter-spacing:0.18em;color:" + treeInfo.color + ";text-transform:uppercase;margin-bottom:18px;text-align:center;";
+  hdr.textContent = treeInfo.label;
+  col.appendChild(hdr);
+
+  rowNums.forEach((r, ri) => {
+    const rowSkills = byRow[r];
+    const isCap = r === 4;
+
+    if (ri > 0) {
+      const anyActive = rowSkills.some(sk => sk.req.some(rid => SKILLS.find(s=>s.id===rid)?.level > 0));
+      const vconn = document.createElement('div');
+      vconn.style.cssText = 'width:2px;height:24px;margin:0 auto;background:' + (anyActive ? treeInfo.color+'88' : 'var(--border)') + ';';
+      col.appendChild(vconn);
     }
 
     const rowEl = document.createElement('div');
-    rowEl.className = 'skill-row';
+    rowEl.style.cssText = 'display:flex;gap:8px;align-items:center;justify-content:center;width:100%';
 
-    skills.forEach((sk, i) => {
+    rowSkills.forEach((sk, i) => {
       if (i > 0) {
+        const bothActive = rowSkills[i-1].level > 0 && sk.level > 0;
         const hconn = document.createElement('div');
-        const prevMaxed = skills[i-1].level > 0 && sk.level > 0;
-        hconn.className = 'skill-h-connector' + (prevMaxed?' active':'');
+        hconn.style.cssText = 'height:2px;flex:1;background:' + (bothActive ? treeInfo.color+'88' : 'var(--border)') + ';';
         rowEl.appendChild(hconn);
       }
 
       const unlocked = skillUnlocked(sk);
       const maxed = sk.level >= sk.maxLevel;
-      const canBuy = unlocked && !maxed && G.skillPoints >= sk.cost;
-      const nodeClass = maxed ? 'maxed-skill' : unlocked&&sk.level>0 ? 'unlocked-skill' : !unlocked ? 'locked-skill' : '';
+      const canBuy = unlocked && !maxed && G.dust >= sk.cost;
+      const borderCol = maxed ? treeInfo.color : (unlocked && sk.level > 0) ? treeInfo.color+'55' : 'var(--border)';
+      const bgCol = maxed ? 'rgba(20,35,22,0.95)' : 'rgba(16,14,26,0.95)';
+      const glowStyle = maxed ? ('box-shadow:0 0 14px ' + treeInfo.glow + ';') : (canBuy ? 'box-shadow:0 0 6px ' + treeInfo.glow + ';' : '');
 
       const node = document.createElement('div');
-      node.className = `skill-node ${nodeClass}`;
-      node.innerHTML = `<div class="sn-icon">${sk.icon}</div>
-        <div class="sn-name">${sk.name}</div>
-        <div class="sn-level">${maxed?'MAX':sk.level+'/'+sk.maxLevel}</div>`;
+      node.style.cssText =
+        (isCap ? 'width:90%;max-width:220px;height:82px;' : 'flex:1;min-width:72px;max-width:110px;height:84px;') +
+        'border-radius:8px;background:' + bgCol + ';border:2px solid ' + borderCol + ';' + glowStyle +
+        (unlocked ? '' : 'opacity:0.28;') +
+        'display:flex;flex-direction:column;align-items:center;justify-content:center;' +
+        'gap:2px;cursor:' + (canBuy ? 'pointer' : 'not-allowed') + ';transition:all 0.2s;text-align:center;padding:6px;';
 
-      node.addEventListener('mouseenter', e => showSkillTooltip(sk, e));
-      node.addEventListener('mousemove',  e => moveSkillTooltip(e));
+      node.innerHTML =
+        '<div style="font-size:' + (isCap ? '28px' : '22px') + '">' + sk.icon + '</div>' +
+        '<div style="font-family:\'Cinzel\',serif;font-size:8px;letter-spacing:0.04em;color:' +
+          (maxed ? treeInfo.color : 'var(--gold)') + ';line-height:1.2;margin-top:1px">' + sk.name + '</div>' +
+        '<div style="font-size:9px;color:' + (maxed ? treeInfo.color : 'var(--marble-dim)') + '">' +
+          (maxed ? 'MAX' : sk.level + '/' + sk.maxLevel) + '</div>';
+
+      node.addEventListener('mouseenter', function(e) { showSkillTooltip(sk, e, treeInfo.color); });
+      node.addEventListener('mousemove',  function(e) { moveSkillTooltip(e); });
       node.addEventListener('mouseleave', hideSkillTooltip);
-      node.addEventListener('click', () => { if (canBuy) { buySkill(sk.id); } });
-
+      node.addEventListener('click', function() { if (canBuy) buySkill(sk.id); });
       rowEl.appendChild(node);
     });
-    tree.appendChild(rowEl);
-  }
+    col.appendChild(rowEl);
+  });
+  wrap.appendChild(col);
 }
+
 
 function showSkillTooltip(sk, e, color) {
   const tt = document.getElementById('skill-tooltip');
@@ -2048,7 +2138,7 @@ function showSkillTooltip(sk, e, color) {
   tt.innerHTML = '<div class="stt-name" style="color:' + col + '">' + sk.icon + ' ' + sk.name + '</div>' +
     '<div class="stt-desc">' + sk.desc + '</div>' +
     '<div class="stt-effect">Effect: ' + sk.effect + '</div>' +
-    '<div class="stt-cost">' + (maxed ? '✓ Maxed' : unlocked ? 'Cost: ' + sk.cost + ' Skill Points' : '🔒 Unlock prerequisites first') + '</div>' +
+    '<div class="stt-cost">' + (maxed ? '✓ Maxed' : unlocked ? 'Cost: ' + sk.cost + ' Arcane Dust' : '🔒 Unlock prerequisites first') + '</div>' +
     (sk.level > 0 ? '<div style="font-size:11px;color:var(--gold-dim);margin-top:3px">Level: ' + sk.level + '/' + sk.maxLevel + '</div>' : '');
   tt.className = 'skill-tooltip visible';
   moveSkillTooltip(e);
@@ -2305,7 +2395,7 @@ function renderACPanel() {
         <span class="ac-upg-name">${u.name}</span>
       </div>
       <div class="ac-upg-desc">${u.desc}</div>
-      <div class="ac-upg-cost">${u.bought ? '✓ Purchased' : `Cost: <span>${u.cost.toLocaleString()} ${lbl}</span>`}</div>
+      <div class="ac-upg-cost">${u.bought ? '✓ Purchased' : `Cost: <span>${u.cost >= 1e6 ? u.cost.toExponential(2) : u.cost.toLocaleString()} ${lbl}</span>`}</div>
     </div>`;
   }).join('');
 }
@@ -2373,6 +2463,14 @@ document.addEventListener('click', function(e) {
   // Zone selector tabs
   const zoneTab = e.target.closest('[data-zone]');
   if (zoneTab) { G.selectedZone = parseInt(zoneTab.dataset.zone); renderTitansTab(); return; }
+  const skillTab = e.target.closest('[data-skilltree]');
+  if (skillTab) {
+    G.activeSkillTree = skillTab.dataset.skilltree;
+    document.querySelectorAll('.skill-sub-tab').forEach(b => b.classList.remove('active'));
+    skillTab.classList.add('active');
+    renderSkillTree();
+    return;
+  }
 
   // Titan battle buttons
   const titanBtn = e.target.closest('[data-titanid]');
@@ -2387,6 +2485,7 @@ window.clickAltar       = clickAltar;
 window.buyUpgrade       = buyUpgrade;
 window.buySummon        = buySummon;
 window.attackTitan      = attackTitan;
+window.cancelBattle     = cancelBattle;
 window.doPrestige       = doPrestige;
 window.activateAutoClick= activateAutoClick;
 window.buyACUpgrade     = buyACUpgrade;
