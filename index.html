@@ -730,10 +730,7 @@
       <span class="tab-icon">🌿</span>
       Skill Tree
     </button>
-    <button class="nav-tab" onclick="switchMainTab('chronicle')" id="nav-chronicle">
-      <span class="tab-icon">📜</span>
-      Chronicle
-    </button>
+
   </nav>
 
   <!-- CONTENT -->
@@ -841,6 +838,18 @@
       <div class="pane-title">Transcendence</div>
       <div class="pane-subtitle">Reset your progress to ascend beyond mortality. Gain Arcane Dust that permanently multiplies all output.</div>
       <div class="transcend-layout" id="transcend-content"></div>
+      <hr class="section-divider" style="margin:32px 0;max-width:900px">
+      <div class="pane-subtitle" style="margin-bottom:16px">📜 Chronicle of Olympus</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;max-width:900px">
+        <div>
+          <div class="section-head">📜 Recent Events</div>
+          <div id="log-list"></div>
+        </div>
+        <div>
+          <div class="section-head">🏆 Milestones</div>
+          <div class="milestone-grid" id="milestones-list"></div>
+        </div>
+      </div>
     </div>
 
     <!-- ===== SKILL TREE TAB ===== -->
@@ -856,21 +865,7 @@
       </div>
     </div>
 
-    <!-- ===== CHRONICLE TAB ===== -->
-    <div id="pane-chronicle" class="tab-pane">
-      <div class="pane-title">Chronicle of Olympus</div>
-      <div class="pane-subtitle">A record of your divine deeds and heroic milestones.</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;max-width:900px">
-        <div>
-          <div class="section-head">📜 Recent Events</div>
-          <div id="log-list"></div>
-        </div>
-        <div>
-          <div class="section-head">🏆 Milestones</div>
-          <div class="milestone-grid" id="milestones-list"></div>
-        </div>
-      </div>
-    </div>
+
 
   </div><!-- /content -->
 </div><!-- /app -->
@@ -1014,13 +1009,13 @@ const SUMMON_TIERS = [
     color: 'rgba(80,200,120,',
     desc: 'Wild beasts of myth bound to your service.',
     members: [
-      { id:'sc1', name:'Faerie',   icon:'🧚', desc:'Sprites of the forest weave ley threads.',       bonus:'+0.8% Ley/s per stack',         effect:'fps0.008',    baseFPS:3,         baseAtk:5,       baseHP:25,       baseCost:150,       costMult:1.25, owned:0, maxOwned:10, prestigeReq:0 },
-      { id:'sc2', name:'Nymph',    icon:'🌿', desc:'Nature spirits amplify arcane flow.',             bonus:'+1.2% Ley/s per stack',         effect:'fps0.012',    baseFPS:8,         baseAtk:15,      baseHP:75,       baseCost:700,      costMult:1.25, owned:0, maxOwned:10, prestigeReq:0 },
-      { id:'sc3', name:'Satyr',    icon:'🐐', desc:'Wild revellers stir the ley lines.',              bonus:'+0.8% click power per stack',   effect:'click0.008',  baseFPS:25,        baseAtk:40,      baseHP:250,      baseCost:4000,     costMult:1.25, owned:0, maxOwned:10, prestigeReq:0 },
-      { id:'sc4', name:'Centaur',  icon:'🏹', desc:'Half-man archers scout Titan weaknesses.',        bonus:'+1.2% battle power per stack',  effect:'battle0.012', baseFPS:80,        baseAtk:120,     baseHP:750,      baseCost:30000,     costMult:1.25, owned:0, maxOwned:10, prestigeReq:0 },
-      { id:'sc5', name:'Griffin',  icon:'🦅', desc:'Noble guardians soar above the battlefield.',     bonus:'+1.5% Titan damage per stack',  effect:'titan0.015',  baseFPS:250,       baseAtk:400,     baseHP:2500,     baseCost:300000,    costMult:1.25, owned:0, maxOwned:10, prestigeReq:0 },
-      { id:'sc6', name:'Minotaur', icon:'🐂', desc:'The labyrinth beast charges into Titans.',        bonus:'+2% click power per stack',     effect:'click0.02',  baseFPS:750,       baseAtk:1200,    baseHP:8000,     baseCost:5000000,   costMult:1.25, owned:0, maxOwned:10, prestigeReq:0 },
-      { id:'sc7', name:'Hydra',    icon:'🐍', desc:'Each head channels a separate ley current.',      bonus:'+2.5% Ley/s per stack',         effect:'fps0.025',    baseFPS:3000,      baseAtk:4000,    baseHP:50000,    baseCost:150000000,  costMult:1.25, owned:0, maxOwned:10, prestigeReq:0 },
+      { id:'sc1', name:'Faerie',   icon:'🧚', desc:'Sprites of the forest weave ley threads.',       bonus:'+0.8% Ley/s',         effect:'fps0.008',    baseFPS:3,         baseAtk:5,       baseHP:25,       baseCost:150,       costMult:1.25, owned:0, maxOwned:10, prestigeReq:0 },
+      { id:'sc2', name:'Nymph',    icon:'🌿', desc:'Nature spirits amplify arcane flow.',             bonus:'+1.2% Ley/s',         effect:'fps0.012',    baseFPS:8,         baseAtk:15,      baseHP:75,       baseCost:700,      costMult:1.25, owned:0, maxOwned:10, prestigeReq:0 },
+      { id:'sc3', name:'Satyr',    icon:'🐐', desc:'Wild revellers stir the ley lines.',              bonus:'+0.8% click power',   effect:'click0.008',  baseFPS:25,        baseAtk:40,      baseHP:250,      baseCost:4000,     costMult:1.25, owned:0, maxOwned:10, prestigeReq:0 },
+      { id:'sc4', name:'Centaur',  icon:'🏹', desc:'Half-man archers scout Titan weaknesses.',        bonus:'+1.2% battle power',  effect:'battle0.012', baseFPS:80,        baseAtk:120,     baseHP:750,      baseCost:30000,     costMult:1.25, owned:0, maxOwned:10, prestigeReq:0 },
+      { id:'sc5', name:'Griffin',  icon:'🦅', desc:'Noble guardians soar above the battlefield.',     bonus:'+1.5% Titan damage',  effect:'titan0.015',  baseFPS:250,       baseAtk:400,     baseHP:2500,     baseCost:300000,    costMult:1.25, owned:0, maxOwned:10, prestigeReq:0 },
+      { id:'sc6', name:'Minotaur', icon:'🐂', desc:'The labyrinth beast charges into Titans.',        bonus:'+2% click power',     effect:'click0.02',  baseFPS:750,       baseAtk:1200,    baseHP:8000,     baseCost:5000000,   costMult:1.25, owned:0, maxOwned:10, prestigeReq:0 },
+      { id:'sc7', name:'Hydra',    icon:'🐍', desc:'Each head channels a separate ley current.',      bonus:'+2.5% Ley/s',         effect:'fps0.025',    baseFPS:3000,      baseAtk:4000,    baseHP:50000,    baseCost:150000000,  costMult:1.25, owned:0, maxOwned:10, prestigeReq:0 },
     ]
   },
   {
@@ -1028,12 +1023,12 @@ const SUMMON_TIERS = [
     color: 'rgba(201,168,76,',
     desc: 'Legendary warriors whose deeds shake the world.',
     members: [
-      { id:'sh1', name:'Odysseus', icon:'🌊', desc:'The cunning wanderer turns strategy into power.',    bonus:'+15% Ley/s per stack',          effect:'fps0.15',    baseFPS:10000,     baseAtk:12000,   baseHP:150000,   baseCost:2000000000,     costMult:1.25, owned:0, maxOwned:25, prestigeReq:1  },
-      { id:'sh2', name:'Achilles', icon:'🛡️', desc:'Nearly invincible, his presence emboldens allies.', bonus:'+20% battle power per stack',   effect:'battle0.20', baseFPS:50000,     baseAtk:75000,   baseHP:800000,   baseCost:30000000000,    costMult:1.25, owned:0, maxOwned:25, prestigeReq:2  },
-      { id:'sh3', name:'Perseus',  icon:'🗡️', desc:'Slayer of monsters; Titans tremble at his name.',   bonus:'+25% Titan damage per stack',   effect:'titan0.25',  baseFPS:450000,    baseAtk:600000,  baseHP:6000000,  baseCost:750000000000,    costMult:1.28, owned:0, maxOwned:25, prestigeReq:3  },
-      { id:'sh4', name:'Heracles', icon:'🦁', desc:'His twelve labours multiply your output tenfold.',   bonus:'+30% all production per stack', effect:'global0.30', baseFPS:6000000,   baseAtk:9000000, baseHP:90000000, baseCost:25000000000000,   costMult:1.3,  owned:0, maxOwned:25, prestigeReq:4  },
-      { id:'sh5', name:'Theseus',  icon:'🌀', desc:'Navigator of the labyrinth unlocks hidden power.',   bonus:'+35% click power per stack',    effect:'click0.35',  baseFPS:150000000, baseAtk:250000000,baseHP:3000000000,baseCost:2000000000000000,   costMult:1.3,  owned:0, maxOwned:25, prestigeReq:6  },
-      { id:'sh6', name:'Jason',    icon:'🐏', desc:'The Golden Fleece amplifies ley flow greatly.',      bonus:'+40% Ley/s per stack',          effect:'fps0.40',    baseFPS:6000000000,baseAtk:9000000000,baseHP:110000000000,baseCost:225000000000000000,  costMult:1.35, owned:0, maxOwned:25, prestigeReq:8  },
+      { id:'sh1', name:'Odysseus', icon:'🌊', desc:'The cunning wanderer turns strategy into power.',    bonus:'+15% Ley/s',          effect:'fps0.15',    baseFPS:10000,     baseAtk:12000,   baseHP:150000,   baseCost:2000000000,     costMult:1.25, owned:0, maxOwned:25, prestigeReq:1  },
+      { id:'sh2', name:'Achilles', icon:'🛡️', desc:'Nearly invincible, his presence emboldens allies.', bonus:'+20% battle power',   effect:'battle0.20', baseFPS:50000,     baseAtk:75000,   baseHP:800000,   baseCost:30000000000,    costMult:1.25, owned:0, maxOwned:25, prestigeReq:2  },
+      { id:'sh3', name:'Perseus',  icon:'🗡️', desc:'Slayer of monsters; Titans tremble at his name.',   bonus:'+25% Titan damage',   effect:'titan0.25',  baseFPS:450000,    baseAtk:600000,  baseHP:6000000,  baseCost:750000000000,    costMult:1.28, owned:0, maxOwned:25, prestigeReq:3  },
+      { id:'sh4', name:'Heracles', icon:'🦁', desc:'His twelve labours multiply your output tenfold.',   bonus:'+30% all production', effect:'global0.30', baseFPS:6000000,   baseAtk:9000000, baseHP:90000000, baseCost:25000000000000,   costMult:1.3,  owned:0, maxOwned:25, prestigeReq:4  },
+      { id:'sh5', name:'Theseus',  icon:'🌀', desc:'Navigator of the labyrinth unlocks hidden power.',   bonus:'+35% click power',    effect:'click0.35',  baseFPS:150000000, baseAtk:250000000,baseHP:3000000000,baseCost:2000000000000000,   costMult:1.3,  owned:0, maxOwned:25, prestigeReq:6  },
+      { id:'sh6', name:'Jason',    icon:'🐏', desc:'The Golden Fleece amplifies ley flow greatly.',      bonus:'+40% Ley/s',          effect:'fps0.40',    baseFPS:6000000000,baseAtk:9000000000,baseHP:110000000000,baseCost:225000000000000000,  costMult:1.35, owned:0, maxOwned:25, prestigeReq:8  },
     ]
   },
   {
@@ -1041,12 +1036,12 @@ const SUMMON_TIERS = [
     color: 'rgba(167,139,250,',
     desc: 'Olympian deities whose favour reshapes reality.',
     members: [
-      { id:'sg1', name:'Hermes',   icon:'🪽', desc:'Messenger of gods, swift conduit of ley power.',    bonus:'+20% Ley/s per stack',          effect:'fps0.20',    baseFPS:1.5e11,    baseAtk:2.5e11,  baseHP:3e12,     baseCost:2e19,   costMult:1.3,  owned:0, maxOwned:50, prestigeReq:7  },
-      { id:'sg2', name:'Athena',   icon:'🦉', desc:'Goddess of wisdom doubles arcane efficiency.',       bonus:'+25% all production per stack', effect:'global0.25', baseFPS:1.2e13,    baseAtk:1.8e13,  baseHP:2.5e14,   baseCost:4.5e21,   costMult:1.32, owned:0, maxOwned:50, prestigeReq:8  },
-      { id:'sg3', name:'Apollo',   icon:'☀️', desc:'Sun god bathes the ley lines in radiant energy.',    bonus:'+40% Ley/s per stack',          effect:'fps0.40',    baseFPS:1.5e15,    baseAtk:2.25e15, baseHP:3e16,     baseCost:2e24,  costMult:1.35, owned:0, maxOwned:50, prestigeReq:9  },
-      { id:'sg4', name:'Poseidon', icon:'🔱', desc:'Lord of seas floods the grid with tidal power.',     bonus:'+50% battle power per stack',   effect:'battle0.50', baseFPS:4e17,      baseAtk:6e17,    baseHP:8e18,     baseCost:1.5e28,  costMult:1.35, owned:0, maxOwned:50, prestigeReq:10 },
-      { id:'sg5', name:'Hades',    icon:'💀', desc:'Ruler of the dead; souls fuel endless ley flow.',    bonus:'+60% Titan damage per stack',   effect:'titan0.60',  baseFPS:2e19,      baseAtk:3e20,    baseHP:3e21,     baseCost:2.5e31, costMult:1.4,  owned:0, maxOwned:50, prestigeReq:11 },
-      { id:'sg6', name:'Zeus',     icon:'⚡', desc:'King of Olympus — his lightning is all power.',      bonus:'×2 everything per stack',       effect:'global1.0',  baseFPS:5e22,      baseAtk:8e23,    baseHP:8e24,     baseCost:2e35, costMult:1.5,  owned:0, maxOwned:50, prestigeReq:12 },
+      { id:'sg1', name:'Hermes',   icon:'🪽', desc:'Messenger of gods, swift conduit of ley power.',    bonus:'+20% Ley/s',          effect:'fps0.20',    baseFPS:1.5e11,    baseAtk:2.5e11,  baseHP:3e12,     baseCost:2e19,   costMult:1.3,  owned:0, maxOwned:50, prestigeReq:7  },
+      { id:'sg2', name:'Athena',   icon:'🦉', desc:'Goddess of wisdom doubles arcane efficiency.',       bonus:'+25% all production', effect:'global0.25', baseFPS:1.2e13,    baseAtk:1.8e13,  baseHP:2.5e14,   baseCost:4.5e21,   costMult:1.32, owned:0, maxOwned:50, prestigeReq:8  },
+      { id:'sg3', name:'Apollo',   icon:'☀️', desc:'Sun god bathes the ley lines in radiant energy.',    bonus:'+40% Ley/s',          effect:'fps0.40',    baseFPS:1.5e15,    baseAtk:2.25e15, baseHP:3e16,     baseCost:2e24,  costMult:1.35, owned:0, maxOwned:50, prestigeReq:9  },
+      { id:'sg4', name:'Poseidon', icon:'🔱', desc:'Lord of seas floods the grid with tidal power.',     bonus:'+50% battle power',   effect:'battle0.50', baseFPS:4e17,      baseAtk:6e17,    baseHP:8e18,     baseCost:1.5e28,  costMult:1.35, owned:0, maxOwned:50, prestigeReq:10 },
+      { id:'sg5', name:'Hades',    icon:'💀', desc:'Ruler of the dead; souls fuel endless ley flow.',    bonus:'+60% Titan damage',   effect:'titan0.60',  baseFPS:2e19,      baseAtk:3e20,    baseHP:3e21,     baseCost:2.5e31, costMult:1.4,  owned:0, maxOwned:50, prestigeReq:11 },
+      { id:'sg6', name:'Zeus',     icon:'⚡', desc:'King of Olympus — his lightning is all power.',      bonus:'×2 everything',       effect:'global1.0',  baseFPS:5e22,      baseAtk:8e23,    baseHP:8e24,     baseCost:2e35, costMult:1.5,  owned:0, maxOwned:50, prestigeReq:12 },
     ]
   },
 ];
@@ -1060,18 +1055,19 @@ function levelScaling(owned) { return Math.pow(1.1, owned); }
 function getBestSummons(n) {
   const am = arcaneUpgradeMults();
   const sm = summonMults();
-  const globalMult = G.divineMultiplier * sm.globalMult * am.boundChampMult;
+  const globalMult = G.divineMultiplier * sm.globalMult * am.summonCombat;
   return SUMMONS
     .filter(s => s.owned > 0)
     .map(s => {
       const ls = levelScaling(s.owned);
       const ssm2 = summonSkillMults();
       const tier2 = summonTierOf(s);
-      const tc = (ssm2[tier2]?.combat || 1) * ssm2.apex;
+      const ta = ssm2[tier2]?.atk || 1;
+      const th = ssm2[tier2]?.hp  || 1;
       return {
         ...s,
-        totalAtk: s.baseAtk * s.owned * ls * globalMult * sm.battleMult * tc,
-        totalHP:  s.baseHP  * s.owned * ls * globalMult * tc,
+        totalAtk: s.baseAtk * s.owned * ls * globalMult * sm.battleMult * ta,
+        totalHP:  s.baseHP  * s.owned * ls * globalMult * th,
       };
     })
     .sort((a, b) => b.totalAtk - a.totalAtk)
@@ -1088,16 +1084,17 @@ function calcSummonStats(s) {
   if (!s || s.owned === 0) return { fps: 0, atk: 0, hp: 0 };
   const am = arcaneUpgradeMults();
   const sm = summonMults();
-  const globalMult = G.divineMultiplier * sm.globalMult;
+  const globalMult = G.divineMultiplier * sm.globalMult * am.summonCombat;
   // Each owned unit's contribution, scaled by 1.1^owned (10% per level)
   const ls = levelScaling(s.owned);
   const ssm = summonSkillMults();
   const tier = summonTierOf(s);
-  const tierFps    = ssm[tier]?.fps    || 1;
-  const tierCombat = ssm[tier]?.combat || 1;
-  const fpsPerUnit = (s.baseFPS || 0) * ls * globalMult * sm.fpsMult * am.summonFpsMult * tierFps * ssm.apex;
-  const atkPerUnit = (s.baseAtk || 0) * ls * globalMult * am.boundChampMult * sm.battleMult * tierCombat * ssm.apex;
-  const hpPerUnit  = (s.baseHP  || 0) * ls * globalMult * am.boundChampMult * tierCombat * ssm.apex;
+  const tierFps = ssm[tier]?.fps || 1;
+  const tierAtk = ssm[tier]?.atk || 1;
+  const tierHp  = ssm[tier]?.hp  || 1;
+  const fpsPerUnit = (s.baseFPS || 0) * ls * globalMult * sm.fpsMult * am.summonFpsMult * tierFps;
+  const atkPerUnit = (s.baseAtk || 0) * ls * globalMult * am.summonCombat * sm.battleMult * tierAtk;
+  const hpPerUnit  = (s.baseHP  || 0) * ls * globalMult * am.summonCombat * tierHp;
   return { fps: fpsPerUnit, atk: atkPerUnit, hp: hpPerUnit };
 }
 
@@ -1331,31 +1328,39 @@ function summonCost(s) {
 }
 
 function skillMults() {
-  let clickMult = 1, fpsMult = 1, battleMult = 1, globalMult = 1;
-  SKILLS.forEach(sk => {
-    if (sk.level === 0) return;
-    if (sk.id==='sk1') clickMult *= Math.pow(1.25, sk.level);
-    if (sk.id==='sk2') fpsMult   *= Math.pow(1.20, sk.level);
-    if (sk.id==='sk3') battleMult*= Math.pow(1.30, sk.level);
-    if (sk.id==='sk4') clickMult *= Math.pow(1.50, sk.level);
-    if (sk.id==='sk5') fpsMult   *= Math.pow(1.35, sk.level);
-    if (sk.id==='sk8') fpsMult   *= Math.pow(1.15, sk.level);
-    if (sk.id==='sk6') battleMult*= Math.pow(1.60, sk.level);
-    if (sk.id==='sk7') globalMult*= Math.pow(2,    sk.level);
-    if (sk.id==='sk9') battleMult*= Math.pow(3,    sk.level);
-    if (sk.id==='sk10'){ globalMult*=5; clickMult*=5; }
-  });
-  return { clickMult, fpsMult, battleMult, globalMult };
+  // g10 capstone gives +50% global production to all summons
+  let globalMult = 1;
+  const g10 = SKILLS.find(s=>s.id==='g10');
+  if (g10?.level > 0) globalMult *= 1.5;
+  return { clickMult:1, fpsMult:1, battleMult:1, globalMult };
 }
 
 function summonSkillMults() {
-  // Returns per-tier fps, combat, cost multipliers from sk11-sk20
-  const sk = id => SKILLS.find(s=>s.id===id)?.level || 0;
-  const creature = { fps: Math.pow(1.30, sk('sk11')), combat: Math.pow(1.40, sk('sk12')), costMult: Math.pow(0.92, sk('sk13')) };
-  const hero     = { fps: Math.pow(1.50, sk('sk14')), combat: Math.pow(1.60, sk('sk15')), costMult: Math.pow(0.90, sk('sk16')) };
-  const god      = { fps: Math.pow(2.00, sk('sk17')), combat: Math.pow(2.20, sk('sk18')), costMult: Math.pow(0.85, sk('sk19')) };
-  const apex     = sk('sk20') > 0 ? 3 : 1;
-  return { creature, hero, god, apex };
+  const lv = id => SKILLS.find(s=>s.id===id)?.level || 0;
+  // Creature tree
+  const cFps  = Math.pow(1.25,lv('c1')) * Math.pow(1.50,lv('c4')) * Math.pow(2,lv('c8'));
+  const cAtk  = Math.pow(1.30,lv('c2')) * Math.pow(1.60,lv('c5')) * Math.pow(2,lv('c8'));
+  const cHp   = Math.pow(1.30,lv('c3')) * Math.pow(1.60,lv('c6')) * Math.pow(2,lv('c9'));
+  const cCost = Math.pow(0.90,lv('c7'));
+  const cApex = lv('c10') > 0 ? 5 : 1;
+  // Hero tree
+  const hFps  = Math.pow(1.30,lv('h1')) * Math.pow(1.60,lv('h4')) * Math.pow(2.5,lv('h8'));
+  const hAtk  = Math.pow(1.35,lv('h2')) * Math.pow(1.80,lv('h5')) * Math.pow(2.5,lv('h8'));
+  const hHp   = Math.pow(1.35,lv('h3')) * Math.pow(1.80,lv('h6')) * Math.pow(2.5,lv('h9'));
+  const hCost = Math.pow(0.88,lv('h7'));
+  const hApex = lv('h10') > 0 ? 5 : 1;
+  // God tree
+  const gFps  = Math.pow(1.50,lv('g1')) * Math.pow(2.00,lv('g4')) * Math.pow(3,lv('g8'));
+  const gAtk  = Math.pow(1.60,lv('g2')) * Math.pow(2.20,lv('g5')) * Math.pow(3,lv('g8'));
+  const gHp   = Math.pow(1.60,lv('g3')) * Math.pow(2.20,lv('g6')) * Math.pow(3,lv('g9'));
+  const gCost = Math.pow(0.85,lv('g7'));
+  const gApex = lv('g10') > 0 ? 8 : 1;
+  return {
+    creature: { fps: cFps*cApex, atk: cAtk*cApex, hp: cHp*cApex, costMult: cCost },
+    hero:     { fps: hFps*hApex, atk: hAtk*hApex, hp: hHp*hApex, costMult: hCost },
+    god:      { fps: gFps*gApex, atk: gAtk*gApex, hp: gHp*gApex, costMult: gCost },
+    apex: 1,
+  };
 }
 
 function summonTierOf(s) {
@@ -1373,11 +1378,11 @@ function summonMults() {
     const m = s.effect.match(/^([a-z]+)([\d.]+)$/);
     if (!m) return;
     const type = m[1], val = parseFloat(m[2]);
-    if (type === 'fps')     fpsMult    += val * n;
-    if (type === 'battle')  battleMult += val * n;
-    if (type === 'titan')   titanMult  += val * n;
-    if (type === 'click')   clickMult  += val * n;
-    if (type === 'global')  globalMult += val * n;
+    if (type === 'fps')     fpsMult    += val;
+    if (type === 'battle')  battleMult += val;
+    if (type === 'titan')   titanMult  += val;
+    if (type === 'click')   clickMult  += val;
+    if (type === 'global')  globalMult += val;
   });
   return { fpsMult, battleMult, clickMult, titanMult, globalMult };
 }
@@ -1529,7 +1534,6 @@ function attackTitan(id) {
   const defReduction = Math.max(0.1, 1 - def / (def + sumAtk * 0.5 + 1));
   const baseBP = calcBattlePower();
   let dmg = (sumAtk + baseBP) * defReduction * (0.8 + Math.random() * 0.4) * sm.titanMult;
-  if (SKILLS.find(s=>s.id==='sk9')?.level > 0) dmg *= sk.battleMult;
   titan.currentHP = Math.max(0, titan.currentHP - dmg);
   document.getElementById('battle-anim').className='show';
   setTimeout(()=>document.getElementById('battle-anim').className='', 400);
@@ -2059,7 +2063,7 @@ function hideSkillTooltip() {
 }
 
 function renderChronicle() {
-  if (G.currentTab !== 'chronicle') return;
+  if (G.currentTab !== 'transcend') return;
   const ll = document.getElementById('log-list');
   if (ll) ll.innerHTML = LOG_ENTRIES.slice(0,30).map(e=>`<div class="log-entry ${e.type}">${e.msg}</div>`).join('');
   const ml = document.getElementById('milestones-list');
@@ -2096,7 +2100,6 @@ function renderTabContent() {
     case 'titans':    renderTitansTab();    break;
     case 'transcend': renderTranscendTab(); break;
     case 'skilltree': renderSkillTree();    break;
-    case 'chronicle': renderChronicle();    break;
   }
 }
 
