@@ -859,11 +859,7 @@
         <div style="font-family:'Cinzel',serif;font-size:12px;color:var(--gold)">Arcane Dust: <span id="sp-display" style="color:var(--gold-light)">0</span></div>
         <div style="font-size:11px;color:var(--marble-dim)">Hover nodes for details · Click to purchase</div>
       </div>
-      <div style="display:flex;gap:8px;margin-bottom:18px;">
-        <button class="skill-sub-tab active" data-skilltree="creature">🐾 Creatures</button>
-        <button class="skill-sub-tab" data-skilltree="hero">⚔️ Heroes</button>
-        <button class="skill-sub-tab" data-skilltree="god">✨ Gods</button>
-      </div>
+      <div id="skill-sub-nav" style="display:flex;gap:8px;margin-bottom:18px;"></div>
       <div class="skill-tree-wrap">
         <div class="skill-tree" id="skill-tree"></div>
       </div>
@@ -918,8 +914,8 @@ const ARCANE_UPGRADES = [
   },
   {
     id:'au2', name:'Ley Conduit', icon:'🌀',
-    desc:'×3 Click Power per level.',
-    effect:'clickMult3_per_level',
+    desc:'×1.5 Ley/s per level.',
+    effect:'fpsMult1.5_per_level',
     maxLevel:10, level:0,
     baseCost:600, costMult:7,
     currency:'faith',
@@ -936,8 +932,8 @@ const ARCANE_UPGRADES = [
   },
   {
     id:'au4', name:'Flux Absorption', icon:'🔄',
-    desc:'+10% of Ley Power/s added to each click per level.',
-    effect:'fpsToClick0.1_per_level',
+    desc:'+5% of Ley Power/s added to each click per level.',
+    effect:'fpsToClick0.05_per_level',
     maxLevel:8, level:0,
     baseCost:5000, costMult:9,
     currency:'faith',
@@ -973,9 +969,9 @@ function arcaneUpgradeMults() {
   ARCANE_UPGRADES.forEach(au => {
     if (au.level === 0) return;
     if (au.effect === 'clickMult0.5_per_level')      r.clickMult      += 0.5 * au.level;
-    if (au.effect === 'clickMult3_per_level')           r.clickMult      *= Math.pow(3, au.level);
+    if (au.effect === 'fpsMult1.5_per_level')             r.summonFpsMult  *= Math.pow(1.5, au.level);
     if (au.effect === 'summonFpsMult0.5_per_level')   r.summonFpsMult  += 0.5 * au.level;
-    if (au.effect === 'fpsToClick0.1_per_level')      r.fpsToClickPct  += 0.1 * au.level;
+    if (au.effect === 'fpsToClick0.05_per_level')     r.fpsToClickPct  += 0.05 * au.level;
     if (au.effect === 'summonCombat0.05_per_level')   r.summonCombat   += 0.05* au.level;
     if (au.effect === 'titanFpsReward1.25_per_level')  r.titanFpsReward  = Math.pow(1.25, au.level);
   });
@@ -1019,8 +1015,8 @@ const SUMMON_TIERS = [
       { id:'sc3', name:'Satyr',    icon:'🐐', desc:'Wild revellers stir the ley lines.',              bonus:'+0.8% click power',   effect:'click0.008',  baseFPS:12.5,        baseAtk:40,      baseHP:250,      baseCost:4000,     costMult:1.25, owned:0, maxOwned:10, prestigeReq:0 },
       { id:'sc4', name:'Centaur',  icon:'🏹', desc:'Half-man archers scout Titan weaknesses.',        bonus:'+1.2% battle power',  effect:'battle0.012', baseFPS:40,        baseAtk:120,     baseHP:750,      baseCost:30000,     costMult:1.25, owned:0, maxOwned:10, prestigeReq:0 },
       { id:'sc5', name:'Griffin',  icon:'🦅', desc:'Noble guardians soar above the battlefield.',     bonus:'+1.5% Titan damage',  effect:'titan0.015',  baseFPS:125,       baseAtk:400,     baseHP:2500,     baseCost:300000,    costMult:1.25, owned:0, maxOwned:10, prestigeReq:0 },
-      { id:'sc6', name:'Minotaur', icon:'🐂', desc:'The labyrinth beast charges into Titans.',        bonus:'+2% click power',     effect:'click0.02',  baseFPS:375,       baseAtk:1200,    baseHP:8000,     baseCost:5000000,   costMult:1.25, owned:0, maxOwned:10, prestigeReq:0 },
-      { id:'sc7', name:'Hydra',    icon:'🐍', desc:'Each head channels a separate ley current.',      bonus:'+2.5% Ley/s',         effect:'fps0.025',    baseFPS:1500,      baseAtk:4000,    baseHP:50000,    baseCost:150000000,  costMult:1.25, owned:0, maxOwned:10, prestigeReq:0 },
+      { id:'sc6', name:'Minotaur', icon:'🐂', desc:'The labyrinth beast charges into Titans.',        bonus:'+2% click power',     effect:'click0.02',  baseFPS:1875,       baseAtk:1200,    baseHP:8000,     baseCost:5000000,   costMult:1.25, owned:0, maxOwned:10, prestigeReq:0 },
+      { id:'sc7', name:'Hydra',    icon:'🐍', desc:'Each head channels a separate ley current.',      bonus:'+2.5% Ley/s',         effect:'fps0.025',    baseFPS:15000,      baseAtk:4000,    baseHP:50000,    baseCost:150000000,  costMult:1.25, owned:0, maxOwned:10, prestigeReq:0 },
     ]
   },
   {
@@ -1427,7 +1423,7 @@ function calcClickPower(cachedFPS) {
     addFlat += fps * am.fpsToClickPct;
   }
   // Every 10 clicks adds +2% click power (stacks multiplicatively)
-  const clickBonus = Math.pow(1.02, Math.floor(G.totalClicks / 10));
+  const clickBonus = Math.pow(1.02, Math.floor(G.totalClicks / 100));
   return (base + addFlat) * mult * clickBonus;
 }
 
@@ -1477,7 +1473,12 @@ function calcDivineMultiplier() {
 }
 
 function skillUnlocked(sk) {
-  return sk.req.every(rid => SKILLS.find(s=>s.id===rid)?.level > 0);
+  if (!sk.req.every(rid => SKILLS.find(s=>s.id===rid)?.level > 0)) return false;
+  // Hero tree: row 0 requires 1 prestige, row 1 requires 2, etc.
+  if (sk.tree === 'hero' && G.prestiges < sk.row + 1) return false;
+  // God tree: row 0 requires 7 prestige, row 1 requires 8, etc.
+  if (sk.tree === 'god' && G.prestiges < sk.row + 7) return false;
+  return true;
 }
 
 // =====================================================
@@ -1558,20 +1559,23 @@ function attackTitan(id) {
 
     round++;
     // Player attacks titan
-    const b3    = getBestSummons(3);
+    const b3     = getBestSummons(3);
     const sumAtk = b3.reduce((s, x) => s + x.totalAtk, 0);
-    const sm     = summonMults();
-    const am     = arcaneUpgradeMults();
+    const sumHP  = b3.reduce((s, x) => s + x.totalHP,  0);
     const def    = t.baseDef || 0;
-    const defReduction = Math.max(0.1, 1 - def / (def + sumAtk * 0.5 + 1));
+    // Defense softcap: each point of defense reduces damage by 1/(1+atk/def*2)
+    // So player needs 2× titan's def in atk to deal 67% damage, 10× to deal 91%
+    const defReduction = sumAtk / (sumAtk + def * 2 + 1);
     const baseBP = calcBattlePower();
-    const playerDmg = (sumAtk + baseBP) * defReduction * (0.85 + Math.random() * 0.3) * sm.titanMult;
+    const playerDmg = (sumAtk + baseBP) * defReduction * (0.85 + Math.random() * 0.3);
     t.currentHP = Math.max(0, t.currentHP - playerDmg);
 
-    // Titan attacks party
+    // Titan attacks party — party HP acts as the defense stat
     const titanAtk = t.baseAtk || 0;
-    const partyDefReduction = Math.max(0.1, 1 - sumAtk * 0.3 / (sumAtk * 0.3 + titanAtk + 1));
-    const titanDmg = titanAtk * partyDefReduction * (0.8 + Math.random() * 0.4);
+    // partyDefReduction: party's HP pool mitigates titan damage proportionally
+    // When partyHP == titanAtk: 50% reduction. When partyHP >> titanAtk: approaches 1 (no reduction)
+    const partyDefReduction = sumHP / (sumHP + titanAtk + 1);
+    const titanDmg = titanAtk * (1 - partyDefReduction) * (0.8 + Math.random() * 0.4);
     currentPartyHP -= titanDmg;
 
     const fighters = b3.map(s => s.icon).join('');
@@ -1629,8 +1633,10 @@ function doPrestige() {
   if (!confirm(`Transcend now?\n\nGain ${gain} Arcane Dust.\nLey Power, summons, and non-prestige upgrades reset.`)) return;
   G.dust += gain; G.prestiges++;
   G.faith = 0; G.faithTotal = 0;
-  ALL_UPGRADES.filter(u=>u.currency!=='dust').forEach(u=>u.bought=false);
-  TITAN_STATE.forEach((t,i)=>{ t.defeated=false; t.currentHP=TITANS_DATA[i].maxHP; });
+  ALL_UPGRADES.forEach(u=>u.bought=false);
+  SUMMONS.forEach(s=>{ s.owned=0; });
+  // Titans stay defeated across transcensions — only reset HP of undefeated ones
+  TITAN_STATE.forEach((t,i)=>{ if (!t.defeated) t.currentHP=TITANS_DATA[i].maxHP; });
   G.divineMultiplier = calcDivineMultiplier();
   log(`★ TRANSCENSION ${G.prestiges}: Gained ${gain} Arcane Dust!`, 'divine');
   renderAll();
@@ -1675,7 +1681,7 @@ function renderClickTab() {
   const csc = document.getElementById('cs-click'); if(csc) csc.textContent = fmt(cp);
   const csf = document.getElementById('cs-fps');   if(csf) csf.textContent = fmt(fps)+'/s';
   const cst = document.getElementById('cs-total'); if(cst) cst.textContent = fmt(G.faithTotal);
-  const csb = document.getElementById('cs-bonus'); if(csb) csb.textContent = '×'+Math.pow(1.02,Math.floor(G.totalClicks/10)).toFixed(2)+' ('+G.totalClicks+' clicks)';
+  const csb = document.getElementById('cs-bonus'); if(csb) csb.textContent = '×'+Math.pow(1.02,Math.floor(G.totalClicks/100)).toFixed(2)+' ('+G.totalClicks+' clicks)';
   renderACPanel();
   renderArcaneUpgrades();
 }
@@ -1687,9 +1693,9 @@ function renderArcaneUpgrades() {
 
   function effectSummary(au) {
     if (au.effect === 'clickMult0.5_per_level')    return au.level>0 ? `Now: +${(50*au.level)}% click power` : '+50% click power / level';
-    if (au.effect === 'clickMult3_per_level')        return au.level>0 ? `Now: ×${Math.pow(3,au.level).toLocaleString()} click power` : '×3 click power / level';
+    if (au.effect === 'clickMult1.5_per_level')       return au.level>0 ? `Now: ×${Math.pow(1.5,au.level).toFixed(2)} click power` : '×1.5 click power / level';
     if (au.effect === 'summonFpsMult0.5_per_level') return au.level>0 ? `Now: summons +${(50*au.level)}% Ley/s` : '+50% summon Ley/s / level';
-    if (au.effect === 'fpsToClick0.1_per_level')    return au.level>0 ? `Now: ${(10*au.level)}% of Ley/s → click` : '+10% Ley/s to click / level';
+    if (au.effect === 'fpsToClick0.05_per_level')   return au.level>0 ? `Now: ${(5*au.level)}% of Ley/s → click` : '+5% Ley/s to click / level';
     if (au.effect === 'summonCombat0.05_per_level') return au.level>0 ? `Now: summons +${(5*au.level)}% Atk & HP` : '+5% summon Atk & HP / level';
     if (au.effect === 'titanFpsReward1.25_per_level') return au.level>0 ? `Now: +${Math.pow(1.25,au.level).toFixed(2)}x Ley/s as bonus reward` : '+Ley/s x1.25 per level';
     return '';
@@ -2058,6 +2064,29 @@ function renderSkillTree() {
     god:      { label:'✨ Divine Pantheon',   color:'#c4b5fd', glow:'rgba(196,181,253,0.25)' },
   };
 
+  // Render sub-tab buttons with lock state
+  const TREE_REQS = { creature: 0, hero: 1, god: 7 };
+  const nav = document.getElementById('skill-sub-nav');
+  if (nav) {
+    nav.innerHTML = '';
+    ['creature','hero','god'].forEach(key => {
+      const req = TREE_REQS[key];
+      const locked = G.prestiges < req;
+      const isActive = G.activeSkillTree === key;
+      const labels = { creature:'🐾 Creatures', hero:'⚔️ Heroes', god:'✨ Gods' };
+      const btn = document.createElement('button');
+      btn.className = 'skill-sub-tab' + (isActive ? ' active' : '') + (locked ? ' locked' : '');
+      btn.dataset.skilltree = key;
+      btn.disabled = locked;
+      btn.textContent = locked ? labels[key] + ` 🔒 (${req} prestige)` : labels[key];
+      if (locked) btn.style.opacity = '0.4';
+      nav.appendChild(btn);
+    });
+  }
+
+  // If current active tree is now locked, fall back to creature
+  if (G.prestiges < TREE_REQS[G.activeSkillTree]) G.activeSkillTree = 'creature';
+
   const activeTree = G.activeSkillTree || 'creature';
   const treeInfo = TREE_DEFS[activeTree];
   const treeSkills = SKILLS.filter(s => s.tree === activeTree);
@@ -2111,12 +2140,19 @@ function renderSkillTree() {
         'display:flex;flex-direction:column;align-items:center;justify-content:center;' +
         'gap:2px;cursor:' + (canBuy ? 'pointer' : 'not-allowed') + ';transition:all 0.2s;text-align:center;padding:6px;';
 
+      // Prestige lock label for hero tree
+      const prestigeLocked = (sk.tree === 'hero' && G.prestiges < sk.row + 1) || (sk.tree === 'god' && G.prestiges < sk.row + 7);
+      const prestigeReq = sk.tree === 'god' ? sk.row + 7 : sk.row + 1;
+      const levelLabel = prestigeLocked
+        ? ('🔒 ' + prestigeReq + ' prestige')
+        : (maxed ? 'MAX' : sk.level + '/' + sk.maxLevel);
+
       node.innerHTML =
         '<div style="font-size:' + (isCap ? '28px' : '22px') + '">' + sk.icon + '</div>' +
         '<div style="font-family:\'Cinzel\',serif;font-size:8px;letter-spacing:0.04em;color:' +
           (maxed ? treeInfo.color : 'var(--gold)') + ';line-height:1.2;margin-top:1px">' + sk.name + '</div>' +
         '<div style="font-size:9px;color:' + (maxed ? treeInfo.color : 'var(--marble-dim)') + '">' +
-          (maxed ? 'MAX' : sk.level + '/' + sk.maxLevel) + '</div>';
+          levelLabel + '</div>';
 
       node.addEventListener('mouseenter', function(e) { showSkillTooltip(sk, e, treeInfo.color); });
       node.addEventListener('mousemove',  function(e) { moveSkillTooltip(e); });
@@ -2465,9 +2501,8 @@ document.addEventListener('click', function(e) {
   if (zoneTab) { G.selectedZone = parseInt(zoneTab.dataset.zone); renderTitansTab(); return; }
   const skillTab = e.target.closest('[data-skilltree]');
   if (skillTab) {
+    if (skillTab.disabled) return;
     G.activeSkillTree = skillTab.dataset.skilltree;
-    document.querySelectorAll('.skill-sub-tab').forEach(b => b.classList.remove('active'));
-    skillTab.classList.add('active');
     renderSkillTree();
     return;
   }
